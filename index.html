@@ -312,6 +312,11 @@ textarea.field{width:100%;min-height:150px;font:400 13px/1.5 var(--f-mono);resiz
       <p class="err" id="invite-err" hidden></p>
     </form>
     <div class="card">
+      <h2>Just testing?</h2>
+      <p class="fine" style="margin:6px 0 12px">Start a test board instantly, with no setup. It runs on a free public test server that can wipe data at any time, so use it only to try things out.</p>
+      <button class="btn" data-act="start-test">Start a test board</button>
+    </div>
+    <div class="card">
       <h2>Starting fresh?</h2>
       <p class="fine" style="margin:6px 0 12px">Set up a new board with your own free Firebase database. It takes about ten minutes, once.</p>
       <button class="btn" data-act="start-setup">Set up a new board</button>
@@ -350,16 +355,20 @@ service cloud.firestore {
         </form>
       </li>
     </ol>
-    <div class="card" id="setup-done" hidden>
-      <h2>Your board is ready</h2>
-      <p class="fine" style="margin:6px 0 10px">Send this link to your partner. Anyone with it can open the board, so send it only to them. Messages are encrypted on your phones with a key that lives inside this link.</p>
-      <div class="linkbox" id="new-link"></div>
-      <div class="row-btns" style="margin-top:10px">
-        <button class="btn ghost" data-act="copy-link">Copy link</button>
-        <a class="btn ghost" id="wa-link" target="_blank" rel="noopener">Send on WhatsApp</a>
-        <button class="btn" data-act="enter-board">Open the board</button>
-      </div>
+  </section>
+
+  <!-- Board created: share the link -->
+  <section class="entry" id="share" hidden>
+    <div class="duo" aria-hidden="true"><span></span><span></span></div>
+    <h1>Your board is ready</h1>
+    <p class="lede" id="share-lede">Send this link to your partner. They tap it, type their name, and they're in.</p>
+    <div class="linkbox" id="new-link"></div>
+    <div class="row-btns">
+      <a class="btn" id="wa-link" target="_blank" rel="noopener">Send on WhatsApp</a>
+      <button class="btn ghost" data-act="copy-link">Copy link</button>
+      <button class="btn ghost" data-act="enter-board">Open the board myself</button>
     </div>
+    <p class="fine">Anyone with this link can open the board, so send it only to your partner. Everything is encrypted on your phones with a key that lives inside the link.</p>
   </section>
 
   <!-- Connecting / errors -->
@@ -624,7 +633,8 @@ function encodeRoom(room){return b64u.enc(new TextEncoder().encode(JSON.stringif
 function decodeRoom(s){
   try{
     const r=JSON.parse(new TextDecoder().decode(b64u.dec(s)));
-    if(r&&r.c&&r.c.apiKey&&r.c.projectId&&r.c.appId&&typeof r.r==='string'&&r.r.length>=20&&typeof r.k==='string'&&b64u.dec(r.k).length===32) return r;
+    const okCfg=r&&r.c&&((r.c.t==='mqtt'&&/^wss:\/\//.test(r.c.b||''))||(r.c.apiKey&&r.c.projectId&&r.c.appId));
+    if(okCfg&&typeof r.r==='string'&&r.r.length>=20&&typeof r.k==='string'&&b64u.dec(r.k).length===32) return r;
   }catch(e){}
   return null;
 }
@@ -703,6 +713,77 @@ function makeDb(fs,roomId){
   const ref=p=>{const seg=p.split('/');let r=root;seg.forEach((s,i)=>{r=i%2===0?r.collection(s):r.doc(s)});return r;};
   return {doc:p=>wrapDoc(ref(p)),collection:p=>wrapQuery(ref(p))};
 }
+const TEST_BROKER='wss://broker.emqx.io:8084/mqtt';
+function loadScript(src){
+  return new Promise((res,rej)=>{ const el=document.createElement('script'); el.src=src; el.onload=res; el.onerror=()=>rej({code:'test-unreachable'}); document.head.appendChild(el); });
+}
+async function mqttStore(brokerUrl,prefix){
+  if(typeof window.mqtt==='undefined') await loadScript('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js');
+  const M=window.mqtt, connect=M&&(M.connect||(M.default&&M.default.connect));
+  if(!connect) throw {code:'sdk-missing'};
+  const T='bu1/', cache=new Map(), listeners=new Set();
+  const parentOf=p=>p.split('/').slice(0,-1).join('/');
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  let lastMsg=Date.now(), synced=false;
+  const client=connect(brokerUrl,{clientId:'bu_'+rand(9),clean:true,reconnectPeriod:3000,connectTimeout:12000,keepalive:45});
+  S.mqtt=client;
+  const emit=path=>{ if(synced) listeners.forEach(l=>{ if(l.match(path)) l.run(); }); };
+  client.on('message',(topic,payload)=>{
+    if(!topic.startsWith(T)) return;
+    const path=topic.slice(T.length), txt=payload?payload.toString():'';
+    if(!txt) cache.delete(path); else { try{ cache.set(path,JSON.parse(txt)); }catch(e){ return; } }
+    lastMsg=Date.now(); emit(path);
+  });
+  client.on('error',()=>{});
+  await new Promise((res,rej)=>{
+    const to=setTimeout(()=>{ try{client.end(true)}catch(e){} rej({code:'test-unreachable'}); },15000);
+    client.once('connect',()=>{
+      client.subscribe(T+prefix+'/#',{qos:1},err=>{
+        if(err){ clearTimeout(to); rej({code:'test-unreachable'}); return; }
+        lastMsg=Date.now();
+        const iv=setInterval(()=>{ if(Date.now()-lastMsg>700){ clearInterval(iv); clearTimeout(to); synced=true; res(); } },150);
+      });
+    });
+  });
+  const put=(path,data)=>{
+    if(data==null) cache.delete(path); else cache.set(path,clone(data));
+    emit(path);
+    return new Promise(res=>client.publish(T+path,data==null?'':JSON.stringify(data),{qos:1,retain:true},()=>res()));
+  };
+  const snap=p=>({id:p.split('/').pop(),exists:cache.has(p),data:()=>cache.has(p)?clone(cache.get(p)):undefined,metadata:{fromCache:false,hasPendingWrites:false}});
+  const merge=(a,b)=>{ const out=clone(a||{}); for(const [k,v] of Object.entries(b)){ out[k]=(v&&typeof v==='object'&&!Array.isArray(v)&&out[k]&&typeof out[k]==='object')?merge(out[k],v):clone(v); } return out; };
+  function DocRef(p){
+    return {
+      id:p.split('/').pop(),
+      get:async()=>snap(p),
+      set:(d,opt)=>put(p,opt&&opt.merge?merge(cache.get(p),d):d),
+      delete:()=>put(p,null),
+      onSnapshot(n){ const l={match:q=>q===p,run:()=>n(snap(p))}; listeners.add(l); setTimeout(l.run,0); return ()=>listeners.delete(l); },
+      collection:c=>CollRef(p+'/'+c)
+    };
+  }
+  function CollRef(c,q){
+    q=q||{w:[],o:null,l:null};
+    const run=()=>{
+      let ks=[...cache.keys()].filter(k=>parentOf(k)===c);
+      q.w.forEach(([f,op,v])=>{ ks=ks.filter(k=>{ const x=cache.get(k)[f]; return op==='<'?x<v:op==='>'?x>v:op==='=='?x===v:true; }); });
+      ks.sort();
+      if(q.o){ const [f,dir]=q.o; ks.sort((a,b)=>{ const x=cache.get(a)[f], y=cache.get(b)[f]; return ((x>y)-(x<y))*(dir==='desc'?-1:1); }); }
+      if(q.l) ks=ks.slice(0,q.l);
+      const docs=ks.map(snap); return {docs,size:docs.length,empty:!docs.length,metadata:{}};
+    };
+    return {
+      where:(f,op,v)=>CollRef(c,{w:q.w.concat([[f,op,v]]),o:q.o,l:q.l}),
+      orderBy:(f,dir)=>CollRef(c,{w:q.w,o:[f,dir||'asc'],l:q.l}),
+      limit:n=>CollRef(c,{w:q.w,o:q.o,l:n}),
+      doc:id=>DocRef(c+'/'+(id||rand(10))),
+      add:async d=>{ const r=DocRef(c+'/'+rand(10)); await r.set(d); return r; },
+      get:async()=>run(),
+      onSnapshot(n){ const l={match:p=>parentOf(p)===c,run:()=>n(run())}; listeners.add(l); setTimeout(l.run,0); return ()=>listeners.delete(l); }
+    };
+  }
+  return {collection:c=>CollRef(c)};
+}
 function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))])}
 async function initFirebase(cfg){
   if(typeof firebase==='undefined') throw {code:'sdk-missing'};
@@ -713,6 +794,7 @@ async function initFirebase(cfg){
 }
 function friendly(e){
   const c=(e&&e.code)||'', m=(e&&e.message)||'';
+  if(c==='test-unreachable') return 'Could not reach the free test server. Check your internet connection and try again. If it keeps failing, set up your own Firebase board instead.';
   if(c==='sdk-missing') return 'The app could not load its database library. Check your internet connection and reload.';
   if(c==='auth/operation-not-allowed'||c==='auth/admin-restricted-operation') return 'Anonymous sign-in is off. In Firebase, open Authentication → Sign-in method → Anonymous and turn it on (step 4).';
   if(c.indexOf('api-key')>-1||c==='auth/invalid-api-key') return 'Firebase rejected the API key. Copy the config again from Project settings → Your apps (step 5).';
@@ -809,7 +891,7 @@ function renderAll(){
   renderBadges(); if(S.sheet==='bell') renderBell();
 }
 function renderFrame(){
-  const vis={welcome:S.mode==='welcome',wizard:S.mode==='wizard',gate:S.mode==='connecting'||S.mode==='error',join:S.mode==='join',claim:S.mode==='claim',app:S.mode==='ready'};
+  const vis={share:S.mode==='share',welcome:S.mode==='welcome',wizard:S.mode==='wizard',gate:S.mode==='connecting'||S.mode==='error',join:S.mode==='join',claim:S.mode==='claim',app:S.mode==='ready'};
   Object.keys(vis).forEach(id=>{$('#'+id).hidden=!vis[id];});
   $('#bell-btn').hidden=S.mode!=='ready';
   if(S.mode==='connecting'){ $('#gate-title').textContent='Opening your board…'; $('#gate-text').textContent=''; $('#gate-btns').hidden=true; }
@@ -834,6 +916,7 @@ function renderNotice(){
   const el=$('#notice'); let html='';
   if(S.keyBad&&S.mode==='ready') html='<strong>Some items could not be unlocked.</strong> This link’s key does not match the board. Ask your partner to send the link again.';
   else if(S.dbError) html='<strong>Live updates stopped.</strong> Reload the app to reconnect.';
+  else if(S.mode==='ready'&&S.room&&S.room.c.t==='mqtt') html='<strong>Test board.</strong> Data sits on a free public test server and can disappear at any time. When you’re happy, set up your own Firebase board from the welcome screen.';
   el.innerHTML=html; el.hidden=!html;
 }
 
@@ -1199,16 +1282,23 @@ async function createBoard(){
     await withTimeout(app.auth().signInAnonymously(),15000);
     const room={c:cfg,r:rand(16),k:rand(32)};
     await withTimeout(app.firestore().collection('rooms').doc(room.r).collection('meta').doc('created').set({at:Date.now(),v:1}),15000);
-    S.room=room; store('bu-room',encodeRoom(room));
-    const link=inviteLink();
-    $('#new-link').textContent=link;
-    $('#wa-link').href='https://wa.me/?text='+encodeURIComponent('Our board on Between Us: '+link);
-    $('#setup-done').hidden=false; st.textContent='Connected. Your board is created.';
-    $('#setup-done').scrollIntoView({behavior:'smooth',block:'start'});
+    st.textContent='';
+    showShare(room);
   }catch(e){ st.textContent=''; errEl.textContent=friendly(e); errEl.hidden=false; }
   btn.disabled=false;
 }
-function unsubscribeAll(){ S.unsubs.forEach(u=>{try{u()}catch(e){}}); S.unsubs=[]; }
+function showShare(room){
+  S.room=room; store('bu-room',encodeRoom(room));
+  const link=inviteLink();
+  $('#new-link').textContent=link;
+  $('#wa-link').href='https://wa.me/?text='+encodeURIComponent('Join me on Between Us, our private board. Tap the link, type your name, and tap Join: '+link);
+  $('#share-lede').textContent=room.c.t==='mqtt'
+    ? 'This is a test board. Send the link to your partner. They tap it, type their name, and they’re in. Test data can be wiped at any time.'
+    : 'Send this link to your partner. They tap it, type their name, and they’re in.';
+  S.mode='share'; renderAll(); window.scrollTo(0,0);
+}
+function createTestBoard(){ showShare({c:{t:'mqtt',b:TEST_BROKER},r:rand(16),k:rand(32)}); }
+function unsubscribeAll(){ S.unsubs.forEach(u=>{try{u()}catch(e){}}); S.unsubs=[]; if(S.mqtt){ try{S.mqtt.end(true)}catch(e){} S.mqtt=null; } }
 function sub(ref,handler,tries){
   tries=tries||0;
   S.unsubs.push(ref.onSnapshot(handler,e=>{
@@ -1224,10 +1314,14 @@ async function openRoom(room){
   S.got={members:false,moods:false,notes:false,tasks:false,messages:false};
   S.members={}; S.moods={}; S.notes=[]; S.tasks=[]; S.messages=[]; S.presence={};
   try{
-    const app=await initFirebase(room.c);
-    const fs=app.firestore();
-    try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
-    await withTimeout(app.auth().signInAnonymously(),15000);
+    let fs;
+    if(room.c.t==='mqtt'){ fs=await mqttStore(room.c.b,'rooms/'+room.r); }
+    else {
+      const app=await initFirebase(room.c);
+      fs=app.firestore();
+      try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+      await withTimeout(app.auth().signInAnonymously(),15000);
+    }
     S.key=await importKey(room.k);
     S.db=makeDb(fs,room.r);
   }catch(e){ S.mode='error'; S.err=friendly(e); renderAll(); return; }
@@ -1341,6 +1435,7 @@ document.addEventListener('click',e=>{
   const id=b.dataset.id;
   switch(b.dataset.act){
     case 'start-setup': S.mode='wizard'; renderAll(); window.scrollTo(0,0); break;
+    case 'start-test': createTestBoard(); break;
     case 'back-welcome': S.mode='welcome'; renderAll(); break;
     case 'copy-rules': copyText($('#rules-text').textContent,'Rules copied'); break;
     case 'copy-link': if(S.room) copyText(inviteLink(),'Invite link copied'); break;
