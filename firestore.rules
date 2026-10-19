@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each board lives at rooms/<random id>. Only signed-in (anonymous) app users
+    // who know the board's long random id can read or write it. Contents are
+    // encrypted in the app with a key that exists only inside the invite link.
+    match /rooms/{roomId}/{coll}/{docId} {
+      allow read, write: if request.auth != null
+                         && roomId.size() >= 20;
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Between Us",
+  "short_name": "Between Us",
+  "description": "A private board for two: status, mood check-ins, tasks, notes and chat.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#15121C",
+  "theme_color": "#5B45A8",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,1415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Between Us</title>
+<meta name="description" content="A private board for two: status, mood check-ins, tasks, notes and chat.">
+<meta name="theme-color" content="#F4F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15121C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Between Us">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: "you | them" status pair up top, a 24-hour mood dial below it, and a tabbed tray (Tasks / Notes / Chat). One column on phones, two columns from 900px. */
+:root{
+  --bg:#F4F2F7; --surface:#FFFFFF; --surface-2:#ECE8F2; --line:#DDD7E6;
+  --ink:#221D2E; --ink-2:#5B5369; --ink-3:#857D95;
+  --me:#2C7C8E; --me-soft:#DCEFF3; --them:#BF4C76; --them-soft:#F7E0E9;
+  --accent:#5B45A8; --accent-ink:#FFFFFF;
+  --ok:#2F8A57; --warn:#B7791F; --stop:#C2413A; --night:#4B4FA6;
+  --empty:#E7E2EF; --scrim:rgba(20,16,30,.45);
+  --shadow:0 1px 2px rgba(34,29,46,.06), 0 8px 24px rgba(34,29,46,.08);
+  --mood-happy:#E7B23A; --mood-love:#E0668F; --mood-calm:#4FA88E; --mood-excited:#EE8A3A; --mood-miss:#B987D6;
+  --mood-tired:#8C93B8; --mood-stressed:#9A62C2; --mood-sad:#4E86C9; --mood-annoyed:#D4553F; --mood-unwell:#98A24A;
+  --f-display:"Bricolage Grotesque", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  --f-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono:"DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r:16px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#15121C; --surface:#1F1A29; --surface-2:#2A2437; --line:#372F45;
+    --ink:#F1EDF7; --ink-2:#BCB3CB; --ink-3:#8E859E;
+    --me:#62BCCF; --me-soft:#16343B; --them:#EC84A9; --them-soft:#3D1D2B;
+    --accent:#A18CF2; --accent-ink:#15121C;
+    --ok:#5CC08A; --warn:#E3A84A; --stop:#F07A70; --night:#9A9DF2;
+    --empty:#2E2839; --scrim:rgba(0,0,0,.6);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);min-height:100vh}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+img{max-width:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.5}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+ul,ol{margin:0;padding:0}
+ul{list-style:none}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{position:relative;width:30px;height:20px;flex:none}
+.mark i{position:absolute;top:0;width:20px;height:20px;border-radius:50%}
+.mark i:first-child{left:0;background:var(--me)}
+.mark i:last-child{left:10px;background:var(--them);opacity:.88}
+.brand-name{font:700 21px/1 var(--f-display);letter-spacing:-.02em}
+.top-actions{display:flex;align-items:center;gap:10px}
+.clock{font:500 13px var(--f-mono);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.icon-btn{position:relative;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--them);color:var(--surface);font:600 11px/20px var(--f-mono);text-align:center}
+
+/* page */
+.wrap{max-width:1120px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.grid{grid-template-columns:minmax(0,5fr) minmax(0,6fr);align-items:start}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
+.sec-head h2{font:700 19px/1.2 var(--f-display);letter-spacing:-.01em}
+.eyebrow{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.notice{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px;color:var(--ink-2)}
+.notice strong{color:var(--ink)}
+
+/* people */
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.person{border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.person.me{background:var(--me-soft)}
+.person.them{background:var(--them-soft)}
+.who{display:flex;align-items:center;gap:9px;min-width:0}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:600 14px var(--f-body);color:var(--surface);flex:none}
+.me .avatar{background:var(--me)}
+.them .avatar{background:var(--them)}
+.who-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+.who-txt .name{font-weight:600;font-size:15px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live{display:inline-flex;align-items:center;gap:5px;font:500 11px var(--f-mono);color:var(--ok);white-space:nowrap}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.zone{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.zone-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--surface);flex:none}
+.me .zone-ico{color:var(--me)}
+.them .zone-ico{color:var(--them)}
+.zone-txt{min-width:0}
+.zone-label{font:700 clamp(18px,4.8vw,23px)/1.05 var(--f-display);letter-spacing:-.015em;overflow-wrap:anywhere}
+.zone-since{font:400 12px var(--f-mono);color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+.zone-note{font-size:13.5px;color:var(--ink);overflow-wrap:anywhere}
+.callable{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ink-3)}
+.t-ok .dot{background:var(--ok)} .t-warn .dot{background:var(--warn)} .t-stop .dot{background:var(--stop)} .t-night .dot{background:var(--night)}
+.person-mood{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);padding-top:10px;border-top:1px solid color-mix(in srgb,var(--ink) 12%,transparent);min-width:0}
+.person-mood .em{font-size:20px;line-height:1}
+.waiting .wait-copy{font-size:13.5px;color:var(--ink-2)}
+.skeleton{height:150px;border-radius:var(--r);background:var(--surface-2)}
+
+/* buttons + fields */
+.btn{border:0;border-radius:11px;padding:10px 15px;font-weight:600;font-size:14px;background:var(--accent);color:var(--accent-ink);white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.small{padding:8px 12px;font-size:13px;align-self:flex-start}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.me .btn.small{background:var(--me);color:var(--surface)}
+.field{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font:inherit;font-size:16px;color:var(--ink);min-width:0}
+.field::placeholder{color:var(--ink-3)}
+select.field{padding-right:28px}
+textarea.field{width:100%;min-height:150px;font:400 13px/1.5 var(--f-mono);resize:vertical}
+.linkish{border:0;background:none;padding:0;color:var(--accent);font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+/* mood */
+.checkin-head{font-size:14.5px;color:var(--ink-2);margin-bottom:12px}
+.checkin-head strong{color:var(--ink)}
+.mood-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.mood-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:11.5px;line-height:1.15;color:var(--ink-2);text-align:center;min-width:0}
+.mood-btn .em{font-size:23px;line-height:1}
+.mood-btn[aria-pressed="true"]{border-color:var(--me);background:var(--me-soft);color:var(--ink);font-weight:600}
+.mood-note{display:flex;gap:8px;margin-top:10px}
+.mood-note .field{flex:1}
+.dial-row{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:18px;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+@media (max-width:560px){.dial-row{grid-template-columns:minmax(0,1fr)}.dial{max-width:250px;margin:0 auto;width:100%}}
+.dial svg{width:100%;height:auto;display:block}
+.dial .tick{font:500 9.5px var(--f-mono);fill:var(--ink-3)}
+.dial .seg-em{font-size:13px}
+.dial .c1{font:700 17px var(--f-display);fill:var(--ink)}
+.dial .c2{font:500 9px var(--f-mono);fill:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
+.dial .needle{stroke:var(--ink);stroke-width:1.5;opacity:.55}
+.dial .needle-dot{fill:var(--ink)}
+.dial .now-ring{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 3;opacity:.5}
+.legend{display:flex;flex-direction:column;gap:8px;min-width:0}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.legend-row b{color:var(--ink);font-weight:600}
+.sw{width:22px;height:8px;border-radius:4px;flex:none}
+.sw.me{background:var(--me)} .sw.them{background:var(--them)}
+.timeline{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+.tl-item{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;font-size:13px}
+.tl-item .em{font-size:17px;line-height:1.1}
+.tl-item .slot{font:400 11px var(--f-mono);color:var(--ink-3);display:block}
+.tl-item .txt{overflow-wrap:anywhere}
+
+/* tray */
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:13px}
+.tabs button{flex:1;border:0;background:transparent;padding:9px 6px;border-radius:10px;font-weight:600;font-size:14px;color:var(--ink-2);display:flex;align-items:center;justify-content:center;gap:6px}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.count{min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--them);color:var(--surface);font:600 11px/19px var(--f-mono);text-align:center}
+.panel{padding-top:14px}
+.composer{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.composer .grow{flex:1 1 220px}
+.hint{font-size:12.5px;color:var(--ink-3);margin-bottom:8px}
+.list-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:16px;margin-bottom:2px}
+.list-h h3{font:600 13px var(--f-body);color:var(--ink-2)}
+.item{display:flex;gap:11px;align-items:flex-start;padding-block:11px;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item-body{flex:1;min-width:0}
+.item-body p{overflow-wrap:anywhere}
+.meta{display:block;font:400 11.5px var(--f-mono);color:var(--ink-3);margin-top:3px;font-variant-numeric:tabular-nums}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--them);background:transparent;display:grid;place-items:center;flex:none;margin-top:-2px;color:var(--surface)}
+.check svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.done .check{background:var(--them)}
+.done .check svg{opacity:1}
+.done .item-body p{text-decoration:line-through;color:var(--ink-3)}
+.pill{display:inline-block;font:600 10.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;vertical-align:1px;margin-right:6px}
+.pill.urgent{background:color-mix(in srgb,var(--stop) 16%,transparent);color:var(--stop)}
+.pill.open{background:var(--surface-2);color:var(--ink-2)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.status-dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:6px;background:var(--line)}
+.status-dot.ok{background:var(--ok)}
+.x{border:0;background:none;color:var(--ink-3);font-size:12.5px;font-weight:600;padding:4px 2px;white-space:nowrap}
+.x.armed{color:var(--stop)}
+.item .actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.got{border:1px solid var(--them);background:transparent;color:var(--ink);border-radius:9px;padding:5px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.urgent-toggle{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);padding-inline:4px}
+.urgent-toggle input{width:18px;height:18px;accent-color:var(--stop)}
+.empty{padding:22px 4px;text-align:center;color:var(--ink-3);font-size:14px}
+.empty .empty-t{font:700 16px var(--f-display);color:var(--ink-2);margin-bottom:4px}
+
+/* chat */
+.thread{display:flex;flex-direction:column;gap:4px;height:min(52vh,470px);overflow-y:auto;padding:4px 2px 8px;overscroll-behavior:contain}
+.brow{display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:100%}
+.brow.mine{align-items:flex-end}
+.bubble{max-width:80%;padding:8px 12px;border:0;border-radius:18px 18px 18px 5px;background:var(--them-soft);text-align:left;font-size:15px;overflow-wrap:anywhere;display:flex;align-items:center;gap:8px}
+.mine .bubble{background:var(--me-soft);border-radius:18px 18px 5px 18px}
+.bubble.signal{background:transparent;border:1.5px solid var(--them);font-weight:600}
+.mine .bubble.signal{border-color:var(--me)}
+.bubble .sig-e{font-size:22px;line-height:1}
+.btime{font:400 10.5px var(--f-mono);color:var(--ink-3);padding-inline:6px}
+.day-sep{align-self:center;font:500 11px var(--f-mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;padding:10px 0 4px}
+.reacts{display:flex;gap:4px;padding-inline:4px}
+.rchip{font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 6px;line-height:20px}
+.react-bar{display:flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:3px;box-shadow:var(--shadow)}
+.react-bar button{border:0;background:transparent;font-size:19px;padding:4px 6px;border-radius:50%;line-height:1}
+.quick{display:flex;gap:6px;overflow-x:auto;padding-block:10px 8px;scrollbar-width:none}
+.chip{white-space:nowrap;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:500}
+.chat-form{display:flex;gap:8px}
+.chat-form .field{flex:1}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;margin:0 auto;max-width:620px;max-height:88vh;overflow-y:auto;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:var(--shadow);padding-top:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.sheet-head h2{font:700 20px var(--f-display)}
+.zone-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.zone-opt{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--surface);text-align:left;min-width:0}
+.zone-opt .zo-t{display:flex;flex-direction:column;min-width:0}
+.zone-opt .zo-t b{font-weight:600;font-size:14.5px}
+.zone-opt .zo-t span{font-size:12px;color:var(--ink-3)}
+.zone-opt[aria-pressed="true"]{border-color:var(--me);background:var(--me-soft)}
+.zone-opt[aria-pressed="true"] svg{color:var(--me)}
+.sheet .field.full{width:100%;margin-top:12px}
+.nick-label{display:block;margin-top:16px;font-weight:600;font-size:13.5px}
+.nick-label + .field.full{margin-top:6px}
+.sheet-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.ev{display:flex;gap:11px;align-items:flex-start;padding:10px;border-radius:12px}
+.ev.new{background:var(--them-soft)}
+.ev[data-act]{cursor:pointer}
+.ev-ico{width:28px;height:28px;display:grid;place-items:center;font-size:17px;flex:none;color:var(--them)}
+.ev-ico svg{width:20px;height:20px}
+.ev p{overflow-wrap:anywhere;font-size:14px}
+.settings{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.set-row > div{min-width:0}
+.set-row small{display:block;color:var(--ink-3);font-size:12.5px}
+.switch{width:46px;height:28px;border-radius:14px;border:0;background:var(--line);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);transition:transform .15s}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.push-help{background:var(--surface-2);border-radius:12px;padding:12px;font-size:13.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:8px}
+.topic{font:500 14px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;overflow-wrap:anywhere;user-select:all}
+.row-btns{display:flex;flex-wrap:wrap;gap:8px}
+
+/* entry screens */
+.entry{max-width:560px;margin:4vh auto 0;display:flex;flex-direction:column;gap:16px}
+.entry h1{font:700 clamp(30px,8vw,44px)/1.02 var(--f-display);letter-spacing:-.03em}
+.entry .lede{color:var(--ink-2);font-size:16px}
+.entry h2{font:700 18px/1.2 var(--f-display)}
+.duo{display:flex;height:64px}
+.duo span{width:64px;height:64px;border-radius:50%}
+.duo span:first-child{background:var(--me)}
+.duo span:last-child{background:var(--them);margin-left:-22px;opacity:.88}
+.entry label{display:block;font-weight:600;font-size:13.5px;margin-bottom:6px}
+.entry .row{display:flex;gap:8px}
+.entry .row .field{flex:1}
+.fine{font-size:13px;color:var(--ink-3)}
+.err{font-size:14px;color:var(--stop);font-weight:500}
+.steps{display:flex;flex-direction:column;gap:12px;padding-left:22px;counter-reset:none}
+.steps li{padding-left:4px;color:var(--ink-2);font-size:14.5px}
+.steps li b{color:var(--ink)}
+.steps li::marker{font:600 13px var(--f-mono);color:var(--accent)}
+.code{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:400 12px/1.5 var(--f-mono);color:var(--ink);overflow-x:auto;white-space:pre;margin-top:8px}
+.linkbox{font:400 12.5px/1.45 var(--f-mono);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-wrap:anywhere;user-select:all;max-height:7.5em;overflow-y:auto}
+.claim-list{display:flex;flex-direction:column;gap:8px}
+.claim-btn{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:left;font-weight:600;font-size:16px}
+.claim-btn .avatar{background:var(--accent)}
+
+/* toasts */
+.toasts{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.toast{background:var(--ink);color:var(--bg);padding:11px 15px;border-radius:13px;max-width:440px;width:max-content;font-size:14px;box-shadow:var(--shadow);transition:opacity .25s,transform .25s;overflow-wrap:anywhere}
+.toast.them{border-left:4px solid var(--them)}
+.toast.out{opacity:0;transform:translateY(6px)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i></span><span class="brand-name">Between Us</span></div>
+    <div class="top-actions">
+      <span class="clock" id="clock"></span>
+      <button class="icon-btn" id="bell-btn" data-act="open-bell" aria-label="Updates" hidden>
+        <svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+        <span class="badge" id="bell-badge" hidden>0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- First visit with no board on this device -->
+  <section class="entry" id="welcome" hidden>
+    <div class="duo" aria-hidden="true"><span></span><span></span></div>
+    <h1>A private board for the two of you</h1>
+    <p class="lede">Share what you're doing, check in your mood every four hours, and pass tasks, notes and messages to each other.</p>
+    <form class="card" id="open-form">
+      <h2>Got a link from your partner?</h2>
+      <p class="fine" style="margin:6px 0 10px">Paste it here. You only need to do this once on each phone or home-screen app.</p>
+      <label for="invite-in">Invite link</label>
+      <div class="row"><input class="field" id="invite-in" placeholder="https://…#b=…" autocomplete="off"><button class="btn" type="submit">Open</button></div>
+      <p class="err" id="invite-err" hidden></p>
+    </form>
+    <div class="card">
+      <h2>Starting fresh?</h2>
+      <p class="fine" style="margin:6px 0 12px">Set up a new board with your own free Firebase database. It takes about ten minutes, once.</p>
+      <button class="btn" data-act="start-setup">Set up a new board</button>
+    </div>
+  </section>
+
+  <!-- Setup wizard -->
+  <section class="entry" id="wizard" hidden>
+    <button class="linkish" data-act="back-welcome" style="align-self:flex-start">Back</button>
+    <h1>Set up your board</h1>
+    <p class="lede">Your board's data lives in a free Firebase project that only you control. Do these steps once, on a laptop if you can.</p>
+    <ol class="steps">
+      <li>Open <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a>, tap <b>Create a project</b>, give it any name, and turn Google Analytics off.</li>
+      <li>In the left menu, open <b>Build → Firestore Database</b> and tap <b>Create database</b>. Pick a location near you (for Pakistan, <b>asia-south1</b>) and choose <b>production mode</b>.</li>
+      <li>In Firestore, open the <b>Rules</b> tab, replace everything with the rules below, and tap <b>Publish</b>.
+        <div class="code" id="rules-text">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rooms/{roomId}/{coll}/{docId} {
+      allow read, write: if request.auth != null
+                         &amp;&amp; roomId.size() >= 20;
+    }
+  }
+}</div>
+        <button class="btn ghost small" style="margin-top:8px" data-act="copy-rules">Copy rules</button>
+      </li>
+      <li>Open <b>Build → Authentication</b>, tap <b>Get started</b>, then under <b>Sign-in method</b> choose <b>Anonymous</b> and turn it on.</li>
+      <li>Open <b>Project settings</b> (the gear icon), scroll to <b>Your apps</b>, tap the web icon <b>&lt;/&gt;</b>, register the app with any nickname, and copy the <b>firebaseConfig</b> block.</li>
+      <li>Paste that block here and create the board.
+        <form id="setup-form" style="margin-top:8px">
+          <label for="cfg" class="fine" style="font-weight:600">Firebase config</label>
+          <textarea class="field" id="cfg" spellcheck="false" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;…&quot;,&#10;  authDomain: &quot;…&quot;,&#10;  projectId: &quot;…&quot;,&#10;  …&#10;};"></textarea>
+          <div class="row-btns" style="margin-top:10px"><button class="btn" type="submit" id="setup-btn">Create our board</button></div>
+          <p class="fine" id="setup-status" style="margin-top:8px"></p>
+          <p class="err" id="setup-err" hidden></p>
+        </form>
+      </li>
+    </ol>
+    <div class="card" id="setup-done" hidden>
+      <h2>Your board is ready</h2>
+      <p class="fine" style="margin:6px 0 10px">Send this link to your partner. Anyone with it can open the board, so send it only to them. Messages are encrypted on your phones with a key that lives inside this link.</p>
+      <div class="linkbox" id="new-link"></div>
+      <div class="row-btns" style="margin-top:10px">
+        <button class="btn ghost" data-act="copy-link">Copy link</button>
+        <a class="btn ghost" id="wa-link" target="_blank" rel="noopener">Send on WhatsApp</a>
+        <button class="btn" data-act="enter-board">Open the board</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Connecting / errors -->
+  <section class="entry" id="gate" hidden>
+    <h1 id="gate-title">Opening your board…</h1>
+    <p class="lede" id="gate-text"></p>
+    <div class="row-btns" id="gate-btns" hidden>
+      <button class="btn" data-act="retry">Try again</button>
+      <button class="btn ghost" data-act="forget">Use a different link</button>
+    </div>
+  </section>
+
+  <!-- Join -->
+  <section class="entry" id="join" hidden>
+    <div class="duo" aria-hidden="true"><span></span><span></span></div>
+    <h1>Join the board</h1>
+    <p class="lede" id="join-lede">Pick the name your partner will see.</p>
+    <form id="join-form">
+      <label for="join-nick">Your name</label>
+      <div class="row"><input class="field" id="join-nick" maxlength="24" autocomplete="nickname" placeholder="Your name" required><button class="btn" type="submit">Join</button></div>
+    </form>
+    <p class="fine" id="join-claim" hidden></p>
+  </section>
+
+  <!-- Both places taken, this phone not linked yet -->
+  <section class="entry" id="claim" hidden>
+    <div class="duo" aria-hidden="true"><span></span><span></span></div>
+    <h1>Which one are you?</h1>
+    <p class="lede">This board already has two people. Tap your name to use it on this phone too.</p>
+    <div class="claim-list" id="claim-list"></div>
+  </section>
+
+  <div class="grid" id="app" hidden>
+    <div class="col">
+      <section class="pair" id="pair" aria-label="What each of you is doing">
+        <div class="skeleton"></div><div class="skeleton"></div>
+      </section>
+
+      <section class="card" id="mood-card" aria-labelledby="mood-h">
+        <div class="sec-head"><h2 id="mood-h">Mood check-in</h2><span class="eyebrow">every 4 hours</span></div>
+        <p class="checkin-head" id="checkin-head">Loading today's check-ins…</p>
+        <div class="mood-grid" id="mood-grid"></div>
+        <div class="mood-note"><input class="field" id="mood-note" maxlength="80" placeholder="Add a line with your check-in (optional)"></div>
+        <div class="dial-row">
+          <div class="dial" id="dial"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" aria-label="Tasks, notes and chat">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-tasks" data-act="tab" data-tab="tasks" aria-selected="true" aria-controls="panel-tasks">Tasks <span class="count" id="count-tasks" hidden></span></button>
+          <button role="tab" id="tab-notes" data-act="tab" data-tab="notes" aria-selected="false" aria-controls="panel-notes">Notes <span class="count" id="count-notes" hidden></span></button>
+          <button role="tab" id="tab-chat" data-act="tab" data-tab="chat" aria-selected="false" aria-controls="panel-chat">Chat <span class="count" id="count-chat" hidden></span></button>
+        </div>
+
+        <div class="panel" id="panel-tasks" role="tabpanel" aria-labelledby="tab-tasks">
+          <form class="composer" id="task-form">
+            <input class="field grow" id="task-text" maxlength="140" placeholder="Ask your partner to…" aria-label="Task for your partner">
+            <select class="field" id="task-due" aria-label="When">
+              <option value="">Any time</option><option>Today</option><option>Tonight</option><option>Tomorrow</option><option>This weekend</option>
+            </select>
+            <button class="btn" type="submit" id="task-send">Add task</button>
+          </form>
+          <p class="hint">Tasks you add land on your partner's checklist. You see when they tick them off.</p>
+          <div class="list-h"><h3>For you</h3><span class="eyebrow" id="mine-sum"></span></div>
+          <ul id="tasks-mine"></ul>
+          <div class="list-h"><h3>You asked</h3><span class="eyebrow" id="asked-sum"></span></div>
+          <ul id="tasks-asked"></ul>
+        </div>
+
+        <div class="panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
+          <form class="composer" id="note-form">
+            <input class="field grow" id="note-text" maxlength="240" placeholder="Something important they should know" aria-label="Important note">
+            <label class="urgent-toggle"><input type="checkbox" id="note-urgent"> Urgent</label>
+            <button class="btn" type="submit">Leave note</button>
+          </form>
+          <p class="hint">Notes stay pinned until deleted. Your partner taps "Got it" so you know they read it.</p>
+          <ul id="notes"></ul>
+        </div>
+
+        <div class="panel" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" hidden>
+          <div class="thread" id="thread"></div>
+          <div class="quick" id="quick">
+            <button class="chip" data-act="quick" data-kind="hug">🤗 Send a hug</button>
+            <button class="chip" data-act="quick" data-kind="miss">🥺 Missing you</button>
+            <button class="chip" data-act="quick" data-kind="ask">👀 What are you up to?</button>
+            <button class="chip" data-act="quick" data-kind="call">📞 Call me when free</button>
+            <button class="chip" data-act="quick" data-kind="checkin">🫶 Ask for a check-in</button>
+          </div>
+          <form class="chat-form" id="chat-form">
+            <input class="field" id="chat-text" maxlength="600" placeholder="Message" aria-label="Message" autocomplete="off">
+            <button class="btn" type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim" data-act="close-sheet" hidden></div>
+
+<div class="sheet" id="zone-sheet" role="dialog" aria-modal="true" aria-labelledby="zone-title" hidden>
+  <div class="sheet-head"><h2 id="zone-title">What are you doing?</h2><button class="btn ghost small" data-act="close-sheet">Close</button></div>
+  <div class="zone-grid" id="zone-grid"></div>
+  <input class="field full" id="zone-note" maxlength="60" placeholder="Add a note, like “back by 7” (optional)" aria-label="Status note">
+  <label class="nick-label" for="zone-nick">Your name on this board</label>
+  <input class="field full" id="zone-nick" maxlength="24" placeholder="The name your partner sees" autocomplete="nickname">
+  <div class="sheet-foot"><button class="btn" data-act="save-zone">Update status</button></div>
+</div>
+
+<div class="sheet" id="bell-sheet" role="dialog" aria-modal="true" aria-labelledby="bell-title" hidden>
+  <div class="sheet-head"><h2 id="bell-title">Updates</h2><button class="btn ghost small" data-act="close-sheet">Close</button></div>
+  <ul id="events"></ul>
+  <div class="settings">
+    <div class="set-row"><div>Sound<small>A short chime when something new arrives.</small></div><button class="switch" id="sound-switch" role="switch" aria-checked="true" data-act="sound" aria-label="Sound"></button></div>
+    <div class="set-row"><div>Phone alerts while the app is open<small id="alert-msg">Shows a system notification when the app is in the background.</small></div><button class="btn ghost small" data-act="alerts" id="alert-btn">Turn on</button></div>
+    <div class="set-row"><div>Push alerts when the app is closed<small>Uses the free ntfy app. Alerts say who did something, never what they wrote.</small></div><button class="switch" id="push-switch" role="switch" aria-checked="false" data-act="push" aria-label="Push alerts when the app is closed"></button></div>
+    <div class="push-help" id="push-help" hidden>
+      <span>1. Install the free <b>ntfy</b> app (Play Store or App Store).</span>
+      <span>2. Tap <b>+</b> and subscribe to this topic:</span>
+      <span class="topic" id="push-topic"></span>
+      <div class="row-btns"><button class="btn ghost small" data-act="copy-topic">Copy topic</button><a class="btn ghost small" id="push-open" target="_blank" rel="noopener">Open in ntfy</a></div>
+    </div>
+    <div class="set-row"><div>Invite link<small>Send it again if your partner changes phones.</small></div><button class="btn ghost small" data-act="copy-link">Copy link</button></div>
+    <div class="set-row"><div>This phone<small>Remove the board from this phone only. The board itself stays.</small></div><button class="x" id="forget-btn" data-act="forget-armed">Forget board</button></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ---------- vocabulary ---------- */
+const MOODS=[
+  {k:'happy',e:'😊',label:'Happy'},{k:'love',e:'🥰',label:'Loving'},{k:'calm',e:'😌',label:'Calm'},
+  {k:'excited',e:'🤩',label:'Excited'},{k:'miss',e:'🥺',label:'Missing you'},{k:'tired',e:'😴',label:'Tired'},
+  {k:'stressed',e:'😣',label:'Stressed'},{k:'sad',e:'😢',label:'Sad'},{k:'annoyed',e:'😤',label:'Annoyed'},
+  {k:'unwell',e:'🤒',label:'Unwell'}
+];
+const MOOD=Object.fromEntries(MOODS.map(m=>[m.k,m]));
+const ICON={
+  available:'<path d="M4 5h16v11H9l-5 4z"/>',
+  working:'<rect x="4" y="5" width="16" height="10" rx="1.5"/><path d="M2 19h20"/>',
+  meeting:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M15.5 14.2c2.9.1 5.5 1.5 5.5 4.8"/>',
+  eating:'<path d="M5 3v5a2 2 0 0 0 4 0V3M7 3v18"/><path d="M18 21V3c-2.2 1-3.5 4-3.5 7.5H18"/>',
+  commuting:'<path d="M5 17v-5l2-5h10l2 5v5z"/><path d="M5 12h14"/><path d="M7 17v2M17 17v2"/>',
+  gym:'<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
+  praying:'<path d="M12 3c-3 3-6 5-6 9v8h12v-8c0-4-3-6-6-9z"/><path d="M10 20v-4a2 2 0 0 1 4 0v4"/>',
+  family:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
+  sleeping:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  dnd:'<circle cx="12" cy="12" r="9"/><path d="M7.5 12h9"/>'
+};
+const ZONES=[
+  {k:'available',label:'Free to talk',call:'Call anytime',tone:'ok'},
+  {k:'working',label:'Working',call:'Text, call if urgent',tone:'warn'},
+  {k:'meeting',label:'In a meeting',call:'Text only',tone:'stop'},
+  {k:'eating',label:'Eating',call:'Text is fine',tone:'ok'},
+  {k:'commuting',label:'Commuting',call:'Will reply on arrival',tone:'warn'},
+  {k:'gym',label:'Working out',call:'Text is fine',tone:'warn'},
+  {k:'praying',label:'Praying',call:'Back in a few minutes',tone:'warn'},
+  {k:'family',label:'With family',call:'Text is fine',tone:'ok'},
+  {k:'sleeping',label:'Sleeping',call:'Emergencies only',tone:'night'},
+  {k:'dnd',label:'Do not disturb',call:'Emergencies only',tone:'stop'}
+];
+const ZONE=Object.fromEntries(ZONES.map(z=>[z.k,z]));
+const SLOTS=['12 AM – 4 AM','4 AM – 8 AM','8 AM – 12 PM','12 PM – 4 PM','4 PM – 8 PM','8 PM – 12 AM'];
+const SLOT_SHORT=['12a','4a','8a','12p','4p','8p'];
+const SLOT_MID=['12a–4a','4a–8a','8a–12p','12p–4p','4p–8p','8p–12a'];
+const REACTS=['❤️','😂','👍','😮','😢','🙏'];
+const QUICK={
+  hug:{e:'🤗',text:'Sent you a hug'},
+  miss:{e:'🥺',text:'Missing you'},
+  ask:{e:'👀',text:'What are you up to?'},
+  call:{e:'📞',text:'Call me when you are free'},
+  checkin:{e:'🫶',text:'How are you feeling? Do a mood check-in'}
+};
+const SDK='10.12.2';
+
+/* ---------- state ---------- */
+const S={
+  mode:'boot', room:null, key:null, db:null, me:null, err:'', keyBad:false, dbError:false, readOnly:false,
+  members:{}, moods:{}, notes:[], tasks:[], messages:[], presence:{},
+  state:{lastReadAt:0,chatReadAt:0},
+  got:{members:false,moods:false,notes:false,tasks:false,messages:false},
+  tab:'tasks', reactOpen:null, armed:null, zonePick:null, sheet:null, readMarkShown:0,
+  chatRendered:false, pruned:false, alertMsg:'', swReg:null, unsubs:[], lastPush:{}
+};
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const slotOf=d=>Math.floor(d.getHours()/4);
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const fmtTime=ts=>ts?new Date(ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
+const fresh=at=>typeof at==='number'&&at>Date.now()-3*60*1000;
+const svg=k=>'<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+(ICON[k]||ICON.available)+'</svg>';
+const appUrl=()=>location.origin+location.pathname;
+function store(k,v){try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){} return null;}
+function fmtWhen(ts){
+  if(!ts) return '';
+  const d=new Date(ts), now=new Date(), diff=(now-d)/1000;
+  if(diff<45) return 'just now';
+  if(diff<3600) return Math.round(diff/60)+' min ago';
+  if(sameDay(d,now)) return fmtTime(ts);
+  const y=new Date(now); y.setDate(now.getDate()-1);
+  if(sameDay(d,y)) return 'Yesterday '+fmtTime(ts);
+  return d.toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'})+' '+fmtTime(ts);
+}
+function since(ts){
+  if(!ts) return '';
+  const m=Math.max(0,Math.round((Date.now()-ts)/60000));
+  if(m<1) return 'just now';
+  if(m<60) return m+' min';
+  const h=Math.floor(m/60);
+  if(h<24) return h+' h'+(m%60?' '+(m%60)+' min':'');
+  return Math.floor(h/24)+' d';
+}
+function dayLabel(d){
+  const now=new Date(); if(sameDay(d,now)) return 'Today';
+  const y=new Date(now); y.setDate(now.getDate()-1); if(sameDay(d,y)) return 'Yesterday';
+  return d.toLocaleDateString([], {weekday:'long',day:'numeric',month:'short'});
+}
+function partnerId(){ if(!S.me) return null; const o=S.me==='a'?'b':'a'; return S.members[o]?o:null; }
+function nameOf(uid){
+  const m=S.members[uid];
+  return (m&&m.nick)||(uid===S.me?'You':'Your partner');
+}
+const initial=n=>(String(n||'?').trim()[0]||'?').toUpperCase();
+function moodDoc(uid,date){return S.moods[uid+'_'+date]||null}
+function latestMood(uid){
+  let best=null;
+  Object.values(S.moods).forEach(d=>{
+    if(d.by!==uid) return;
+    Object.values(d.slots||{}).forEach(v=>{ if(v&&v.at&&MOOD[v.m]&&(!best||v.at>best.at)) best=v; });
+  });
+  if(best&&best.at>Date.now()-12*3600*1000) return Object.assign({},MOOD[best.m],{at:best.at,note:best.note});
+  return null;
+}
+function msgText(m){const q=QUICK[m.kind];return q?q.e+' '+q.text:(m.text||'')}
+async function copyText(t,label){
+  try{ await navigator.clipboard.writeText(t); toast((label||'Copied')+' to clipboard'); }
+  catch(e){ toast('Copy failed. Press and hold the text to copy it.'); }
+}
+
+/* ---------- link + crypto ---------- */
+const b64u={
+  enc:bytes=>{let s='';const b=new Uint8Array(bytes);for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+  dec:str=>{let s=str.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s);const out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+};
+const rand=n=>b64u.enc(crypto.getRandomValues(new Uint8Array(n)));
+function encodeRoom(room){return b64u.enc(new TextEncoder().encode(JSON.stringify(room)))}
+function decodeRoom(s){
+  try{
+    const r=JSON.parse(new TextDecoder().decode(b64u.dec(s)));
+    if(r&&r.c&&r.c.apiKey&&r.c.projectId&&r.c.appId&&typeof r.r==='string'&&r.r.length>=20&&typeof r.k==='string'&&b64u.dec(r.k).length===32) return r;
+  }catch(e){}
+  return null;
+}
+function roomFromText(t){ const m=String(t||'').match(/#b=([A-Za-z0-9_-]+)/); return m?decodeRoom(m[1]):null; }
+const inviteLink=()=>appUrl()+'#b='+encodeRoom(S.room);
+async function importKey(k){return crypto.subtle.importKey('raw',b64u.dec(k),'AES-GCM',false,['encrypt','decrypt'])}
+const PLAIN=new Set(['by','for','date']);
+const decCache=new Map();
+async function encStr(s){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},S.key,new TextEncoder().encode(s)));
+  const all=new Uint8Array(12+ct.length); all.set(iv,0); all.set(ct,12);
+  return 'e1:'+b64u.enc(all);
+}
+async function decStr(s){
+  if(decCache.has(s)) return decCache.get(s);
+  try{
+    const all=b64u.dec(s.slice(3));
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:all.slice(0,12)},S.key,all.slice(12));
+    const out=new TextDecoder().decode(pt); decCache.set(s,out); return out;
+  }catch(e){ S.keyBad=true; return ''; }
+}
+async function encObj(o){
+  const out={};
+  for(const [k,v] of Object.entries(o)){
+    if(typeof v==='string'&&v!==''&&!PLAIN.has(k)) out[k]=await encStr(v);
+    else if(v&&typeof v==='object'&&!Array.isArray(v)) out[k]=await encObj(v);
+    else out[k]=v;
+  }
+  return out;
+}
+async function decObj(o){
+  const out={};
+  for(const [k,v] of Object.entries(o||{})){
+    if(typeof v==='string'&&v.startsWith('e1:')) out[k]=await decStr(v);
+    else if(v&&typeof v==='object'&&!Array.isArray(v)) out[k]=await decObj(v);
+    else out[k]=v;
+  }
+  return out;
+}
+
+/* ---------- Firebase adapter (same shape the board code uses) ---------- */
+async function decDoc(s){
+  if(!s.exists) return {id:s.id,exists:false,data:()=>undefined,metadata:s.metadata};
+  const plain=await decObj(s.data());
+  return {id:s.id,exists:true,data:()=>plain,metadata:s.metadata};
+}
+async function decQuery(s){ const docs=await Promise.all(s.docs.map(decDoc)); return {docs,size:docs.length,empty:!docs.length,metadata:s.metadata}; }
+function listen(ref,dec,next,err){
+  let chain=Promise.resolve();
+  return ref.onSnapshot(s=>{ chain=chain.then(async()=>next(await dec(s))).catch(e=>console.warn(e)); },err);
+}
+function wrapDoc(ref){
+  return {
+    id:ref.id,
+    get:async()=>decDoc(await ref.get()),
+    set:async d=>ref.set(await encObj(d)),
+    update:async d=>ref.set(await encObj(d),{merge:true}),
+    delete:()=>ref.delete(),
+    onSnapshot:(n,e)=>listen(ref,decDoc,n,e)
+  };
+}
+function wrapQuery(q){
+  return {
+    where:(...a)=>wrapQuery(q.where(...a)),
+    orderBy:(...a)=>wrapQuery(q.orderBy(...a)),
+    limit:n=>wrapQuery(q.limit(n)),
+    get:async()=>decQuery(await q.get()),
+    onSnapshot:(n,e)=>listen(q,decQuery,n,e),
+    doc:id=>wrapDoc(id?q.doc(id):q.doc()),
+    add:async d=>wrapDoc(await q.add(await encObj(d)))
+  };
+}
+function makeDb(fs,roomId){
+  const root=fs.collection('rooms').doc(roomId);
+  const ref=p=>{const seg=p.split('/');let r=root;seg.forEach((s,i)=>{r=i%2===0?r.collection(s):r.doc(s)});return r;};
+  return {doc:p=>wrapDoc(ref(p)),collection:p=>wrapQuery(ref(p))};
+}
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))])}
+async function initFirebase(cfg){
+  if(typeof firebase==='undefined') throw {code:'sdk-missing'};
+  const existing=firebase.apps.find(a=>a.name==='bu');
+  if(existing&&existing.options.projectId===cfg.projectId) return existing;
+  if(existing) await existing.delete();
+  return firebase.initializeApp(cfg,'bu');
+}
+function friendly(e){
+  const c=(e&&e.code)||'', m=(e&&e.message)||'';
+  if(c==='sdk-missing') return 'The app could not load its database library. Check your internet connection and reload.';
+  if(c==='auth/operation-not-allowed'||c==='auth/admin-restricted-operation') return 'Anonymous sign-in is off. In Firebase, open Authentication → Sign-in method → Anonymous and turn it on (step 4).';
+  if(c.indexOf('api-key')>-1||c==='auth/invalid-api-key') return 'Firebase rejected the API key. Copy the config again from Project settings → Your apps (step 5).';
+  if(c==='auth/network-request-failed') return 'Could not reach Firebase. Check your internet connection and try again.';
+  if(c==='permission-denied') return 'The database refused access. Paste the rules from step 3 into Firestore → Rules and tap Publish.';
+  if(c==='not-found'||/does not exist/i.test(m)) return 'Firestore is not created yet. Do step 2: Firestore Database → Create database.';
+  if(c==='timeout') return 'Firebase did not answer within 15 seconds. Check that Firestore is created (step 2) and your connection works, then try again.';
+  if(c==='resource-exhausted') return 'The free daily Firebase limit is used up. It resets tomorrow.';
+  return 'Something went wrong'+(c?' ('+c+')':'')+'. Try again.';
+}
+function parseConfig(txt){
+  const out={}, re=/(apiKey|authDomain|projectId|appId|messagingSenderId)\s*["']?\s*:\s*["']([^"']+)["']/g; let m;
+  while((m=re.exec(txt))) out[m[1]]=m[2];
+  if(!out.apiKey||!out.projectId||!out.appId) return null;
+  if(!out.authDomain) out.authDomain=out.projectId+'.firebaseapp.com';
+  return {apiKey:out.apiKey,authDomain:out.authDomain,projectId:out.projectId,appId:out.appId};
+}
+
+/* ---------- alerts ---------- */
+let actx=null;
+document.addEventListener('pointerdown',()=>{
+  try{
+    if(!actx){const A=window.AudioContext||window.webkitAudioContext; if(A) actx=new A();}
+    else if(actx.state==='suspended') actx.resume().catch(()=>{});
+  }catch(e){}
+},{passive:true});
+const soundOn=()=>store('bu-sound')!=='off';
+function chime(){
+  if(!soundOn()||!actx) return;
+  try{
+    const t=actx.currentTime;
+    [[659,0],[880,.14]].forEach(([f,d])=>{
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+d);
+      g.gain.exponentialRampToValueAtTime(0.16,t+d+.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d+.4);
+      o.connect(g); g.connect(actx.destination); o.start(t+d); o.stop(t+d+.45);
+    });
+  }catch(e){}
+}
+function toast(text,who){
+  const el=document.createElement('div');
+  el.className='toast'+(who?' '+who:''); el.textContent=text;
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{el.classList.add('out'); setTimeout(()=>el.remove(),300)},4600);
+}
+function sysNotify(text){
+  try{
+    if(!document.hidden||!('Notification' in window)||Notification.permission!=='granted') return;
+    if(S.swReg) S.swReg.showNotification('Between Us',{body:text,icon:'icon-192.png',badge:'icon-192.png',tag:'bu',renotify:true});
+    else new Notification('Between Us',{body:text,icon:'icon-192.png'});
+  }catch(e){}
+}
+function notify(text){
+  toast(text,'them'); chime();
+  try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){}
+  sysNotify(text);
+}
+async function topicFor(seat){
+  const h=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(S.room.k+'|'+S.room.r+'|'+seat)));
+  return 'bu-'+Array.from(h.slice(0,10)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function pushPartner(kind,text){
+  const p=partnerId(), pm=p&&S.members[p];
+  if(!pm||!pm.push) return;
+  const now=Date.now(); if(now-(S.lastPush[kind]||0)<10000) return; S.lastPush[kind]=now;
+  topicFor(p).then(t=>fetch('https://ntfy.sh/'+t+'?title='+encodeURIComponent('Between Us')+'&tags=two_hearts&click='+encodeURIComponent(appUrl()),{method:'POST',body:text})).catch(()=>{});
+}
+
+/* ---------- writes ---------- */
+async function act(fn,failMsg){
+  if(!S.db){toast('Not connected yet. Try again in a moment.');return false}
+  try{ await fn(); return true; }
+  catch(e){
+    const c=e&&e.code;
+    if(c==='permission-denied') toast('The database refused this. Check the Firestore rules (setup step 3).');
+    else if(c==='resource-exhausted') toast('The free daily Firebase limit is used up. It resets tomorrow.');
+    else { toast(failMsg||"Couldn't save. Check your connection and try again."); console.warn(e); }
+    return false;
+  }
+}
+function stateKey(){return 'bu-state-'+(S.room?S.room.r:'')}
+function writeState(patch){
+  const next={lastReadAt:S.state.lastReadAt||0,chatReadAt:S.state.chatReadAt||0};
+  Object.assign(next,patch); S.state=next;
+  store(stateKey(),JSON.stringify(next)); renderBadges();
+}
+
+/* ---------- render: frame ---------- */
+function renderAll(){
+  renderFrame(); renderNotice();
+  if(S.mode==='ready'){ renderPair(); renderMood(); renderTasks(); renderNotes(); renderChat(); }
+  renderBadges(); if(S.sheet==='bell') renderBell();
+}
+function renderFrame(){
+  const vis={welcome:S.mode==='welcome',wizard:S.mode==='wizard',gate:S.mode==='connecting'||S.mode==='error',join:S.mode==='join',claim:S.mode==='claim',app:S.mode==='ready'};
+  Object.keys(vis).forEach(id=>{$('#'+id).hidden=!vis[id];});
+  $('#bell-btn').hidden=S.mode!=='ready';
+  if(S.mode==='connecting'){ $('#gate-title').textContent='Opening your board…'; $('#gate-text').textContent=''; $('#gate-btns').hidden=true; }
+  if(S.mode==='error'){ $('#gate-title').textContent='Couldn’t open the board'; $('#gate-text').textContent=S.err; $('#gate-btns').hidden=false; }
+  if(S.mode==='join'){
+    const others=Object.keys(S.members);
+    if(others.length){
+      const o=others[0];
+      $('#join-lede').textContent=nameOf(o)+' is already here. Pick the name they will see.';
+      $('#join-claim').innerHTML='Already joined on another phone? <button class="linkish" data-act="claim" data-seat="'+o+'">I’m '+esc(nameOf(o))+'</button>';
+      $('#join-claim').hidden=false;
+    } else {
+      $('#join-lede').textContent='You’re the first one here. Pick the name your partner will see.';
+      $('#join-claim').hidden=true;
+    }
+  }
+  if(S.mode==='claim'){
+    $('#claim-list').innerHTML=['a','b'].filter(s=>S.members[s]).map(s=>'<button class="claim-btn" data-act="claim" data-seat="'+s+'"><span class="avatar">'+esc(initial(nameOf(s)))+'</span>I’m '+esc(nameOf(s))+'</button>').join('');
+  }
+}
+function renderNotice(){
+  const el=$('#notice'); let html='';
+  if(S.keyBad&&S.mode==='ready') html='<strong>Some items could not be unlocked.</strong> This link’s key does not match the board. Ask your partner to send the link again.';
+  else if(S.dbError) html='<strong>Live updates stopped.</strong> Reload the app to reconnect.';
+  el.innerHTML=html; el.hidden=!html;
+}
+
+/* ---------- render: people ---------- */
+function isOnline(uid){const at=S.presence[uid];return typeof at==='number'&&at>Date.now()-150000}
+function personCard(uid,side){
+  if(!uid){
+    return '<article class="person them waiting"><div class="who"><span class="avatar">?</span><div class="who-txt"><span class="eyebrow">Partner</span><span class="name">Not joined yet</span></div></div>'+
+      '<p class="wait-copy">Send your partner the invite link (Updates → Copy link). When they open it and tap Join, their status shows here.</p>'+
+      '<button class="btn small" data-act="copy-link">Copy invite link</button></article>';
+  }
+  const m=S.members[uid]||{}, z=ZONE[m.zone]||ZONE.available, nm=nameOf(uid), mood=latestMood(uid);
+  const online=side==='them'&&isOnline(uid);
+  return '<article class="person '+side+'">'+
+    '<div class="who"><span class="avatar" aria-hidden="true">'+esc(initial(nm))+'</span><div class="who-txt"><span class="eyebrow">'+(side==='me'?'You':'Partner')+'</span><span class="name">'+esc(nm)+'</span></div>'+(online?'<span class="live">online</span>':'')+'</div>'+
+    '<div class="zone"><span class="zone-ico">'+svg(z.k)+'</span><div class="zone-txt"><div class="zone-label">'+esc(z.label)+'</div><div class="zone-since">'+(m.zoneAt?'since '+esc(fmtTime(m.zoneAt))+' · '+esc(since(m.zoneAt)):'')+'</div></div></div>'+
+    (m.zoneNote?'<p class="zone-note">“'+esc(m.zoneNote)+'”</p>':'')+
+    '<div class="callable t-'+z.tone+'"><span class="dot"></span>'+esc(z.call)+'</div>'+
+    '<div class="person-mood">'+(mood?'<span class="em" aria-hidden="true">'+mood.e+'</span><span>'+esc(mood.label)+' · '+esc(fmtWhen(mood.at))+'</span>':'<span>No mood check-in yet</span>')+'</div>'+
+    (side==='me'?'<button class="btn small" data-act="open-zone">Change status</button>':'')+
+  '</article>';
+}
+function renderPair(){ if(S.mode==='ready') $('#pair').innerHTML=personCard(S.me,'me')+personCard(partnerId(),'them'); }
+
+/* ---------- render: mood ---------- */
+function moodColor(k){return MOOD[k]?'var(--mood-'+k+')':'var(--empty)'}
+function pt(cx,cy,r,a){const t=(a-90)*Math.PI/180;return [+(cx+r*Math.cos(t)).toFixed(2),+(cy+r*Math.sin(t)).toFixed(2)]}
+function arc(cx,cy,r1,r2,a0,a1){
+  const [x0,y0]=pt(cx,cy,r2,a0),[x1,y1]=pt(cx,cy,r2,a1),[x2,y2]=pt(cx,cy,r1,a1),[x3,y3]=pt(cx,cy,r1,a0);
+  return 'M'+x0+' '+y0+' A'+r2+' '+r2+' 0 0 1 '+x1+' '+y1+' L'+x2+' '+y2+' A'+r1+' '+r1+' 0 0 0 '+x3+' '+y3+' Z';
+}
+function dialSVG(mine,theirs,now){
+  const cx=120,cy=120,slot=slotOf(now); let s='';
+  for(let i=0;i<6;i++){
+    const a0=i*60+1.4,a1=(i+1)*60-1.4,mid=i*60+30;
+    const em=mine&&mine.slots&&mine.slots['s'+i], et=theirs&&theirs.slots&&theirs.slots['s'+i];
+    s+='<path d="'+arc(cx,cy,80,103,a0,a1)+'" style="fill:'+(em?moodColor(em.m):'var(--empty)')+'"><title>You, '+SLOTS[i]+(em&&MOOD[em.m]?': '+MOOD[em.m].label:': no check-in')+'</title></path>';
+    s+='<path d="'+arc(cx,cy,52,76,a0,a1)+'" style="fill:'+(et?moodColor(et.m):'var(--empty)')+'"><title>'+esc(nameOf(partnerId()))+', '+SLOTS[i]+(et&&MOOD[et.m]?': '+MOOD[et.m].label:': no check-in')+'</title></path>';
+    if(em&&MOOD[em.m]){const [x,y]=pt(cx,cy,91.5,mid); s+='<text class="seg-em" x="'+x+'" y="'+y+'" text-anchor="middle" dominant-baseline="central">'+MOOD[em.m].e+'</text>';}
+    if(et&&MOOD[et.m]){const [x,y]=pt(cx,cy,64,mid); s+='<text class="seg-em" x="'+x+'" y="'+y+'" text-anchor="middle" dominant-baseline="central">'+MOOD[et.m].e+'</text>';}
+    const [lx,ly]=pt(cx,cy,113,i*60); s+='<text class="tick" x="'+lx+'" y="'+ly+'" text-anchor="middle" dominant-baseline="central">'+SLOT_SHORT[i]+'</text>';
+  }
+  s+='<path class="now-ring" d="'+arc(cx,cy,78,105,slot*60+0.5,(slot+1)*60-0.5)+'"/>';
+  const a=(now.getHours()+now.getMinutes()/60)/24*360;
+  const [ix,iy]=pt(cx,cy,46,a),[ox,oy]=pt(cx,cy,104,a);
+  s+='<line class="needle" x1="'+ix+'" y1="'+iy+'" x2="'+ox+'" y2="'+oy+'"/><circle class="needle-dot" cx="'+ox+'" cy="'+oy+'" r="3"/>';
+  s+='<text class="c1" x="120" y="116" text-anchor="middle">'+SLOT_MID[slot]+'</text><text class="c2" x="120" y="133" text-anchor="middle">this check-in</text>';
+  return '<svg viewBox="0 0 240 240" role="img" aria-label="Today’s moods in four-hour blocks. Outer ring is you, inner ring is your partner.">'+s+'</svg>';
+}
+function buildMoodGrid(){
+  $('#mood-grid').innerHTML=MOODS.map(m=>'<button class="mood-btn" data-act="mood" data-mood="'+m.k+'" aria-pressed="false"><span class="em" aria-hidden="true">'+m.e+'</span>'+esc(m.label)+'</button>').join('');
+}
+function renderMood(){
+  if(S.mode!=='ready') return;
+  const now=new Date(), slot=slotOf(now), today=ymd(now), p=partnerId();
+  const mine=moodDoc(S.me,today), theirs=p?moodDoc(p,today):null;
+  const cur=mine&&mine.slots&&mine.slots['s'+slot];
+  const nextH=new Date(now); nextH.setHours((slot+1)*4,0,0,0);
+  const nextLabel=nextH.toLocaleTimeString([], {hour:'numeric'});
+  $('#checkin-head').innerHTML=cur&&MOOD[cur.m]
+    ? 'You checked in <strong>'+MOOD[cur.m].e+' '+esc(MOOD[cur.m].label)+'</strong> at '+esc(fmtTime(cur.at))+'. Tap another mood to change it. The next check-in opens at '+esc(nextLabel)+'.'
+    : '<strong>The '+SLOTS[slot]+' check-in is open.</strong> How are you feeling right now?';
+  document.querySelectorAll('.mood-btn').forEach(b=>b.setAttribute('aria-pressed',cur&&cur.m===b.dataset.mood?'true':'false'));
+  $('#dial').innerHTML=dialSVG(mine,theirs,now);
+  let lg='<div class="legend-row"><span class="sw me"></span><span>Outer ring · <b>You</b></span></div>'+
+         '<div class="legend-row"><span class="sw them"></span><span>Inner ring · <b>'+esc(p?nameOf(p):'Your partner')+'</b></span></div>';
+  if(p){
+    const entries=Object.entries((theirs&&theirs.slots)||{}).filter(([,v])=>v&&MOOD[v.m]).sort((a,b)=>b[1].at-a[1].at);
+    lg+='<div class="timeline">';
+    if(entries.length){
+      entries.slice(0,4).forEach(([k,v])=>{
+        const i=+k.slice(1);
+        lg+='<div class="tl-item"><span class="em" aria-hidden="true">'+MOOD[v.m].e+'</span><div class="txt"><span class="slot">'+esc(SLOTS[i]||'')+' · '+esc(fmtTime(v.at))+'</span>'+esc(MOOD[v.m].label)+(v.note?' — '+esc(v.note):'')+'</div></div>';
+      });
+    } else lg+='<p class="hint" style="margin:0">'+esc(nameOf(p))+' hasn’t checked in today.</p>';
+    const tc=theirs&&theirs.slots&&theirs.slots['s'+slot];
+    if(!tc) lg+='<button class="linkish" data-act="quick" data-kind="checkin">Ask '+esc(nameOf(p))+' to check in</button>';
+    lg+='</div>';
+  }
+  $('#legend').innerHTML=lg;
+}
+
+/* ---------- render: tasks ---------- */
+function taskSort(a,b){
+  if(!!a.done!==!!b.done) return a.done?1:-1;
+  return a.done?(b.doneAt||0)-(a.doneAt||0):(b.at||0)-(a.at||0);
+}
+function delBtn(act,id){
+  const armed=S.armed===act+':'+id;
+  return '<button class="x'+(armed?' armed':'')+'" data-act="'+act+'" data-id="'+esc(id)+'">'+(armed?'Tap to delete':'Delete')+'</button>';
+}
+function renderTasks(){
+  if(S.mode!=='ready') return;
+  const p=partnerId(), pn=nameOf(p);
+  $('#task-text').placeholder=p?'Ask '+pn+' to…':'Your partner needs to join first';
+  $('#task-send').disabled=!p; $('#task-text').disabled=!p;
+  const mine=S.tasks.filter(t=>t.for===S.me).sort(taskSort);
+  const asked=S.tasks.filter(t=>t.by===S.me).sort(taskSort);
+  const openMine=mine.filter(t=>!t.done).length, openAsked=asked.filter(t=>!t.done).length;
+  $('#mine-sum').textContent=mine.length?openMine+' open':'';
+  $('#asked-sum').textContent=asked.length?openAsked+' open · '+(asked.length-openAsked)+' done':'';
+  $('#tasks-mine').innerHTML=mine.length?mine.map(t=>
+    '<li class="item'+(t.done?' done':'')+'">'+
+      '<button class="check" data-act="toggle-task" data-id="'+esc(t.id)+'" aria-pressed="'+(t.done?'true':'false')+'" aria-label="'+(t.done?'Mark not done':'Mark done')+'"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>'+
+      '<div class="item-body"><p>'+esc(t.text)+'</p><span class="meta">From '+esc(nameOf(t.by))+(t.due?' · '+esc(t.due):'')+' · '+esc(t.done?'done '+fmtWhen(t.doneAt):fmtWhen(t.at))+'</span></div>'+
+    '</li>').join('')
+    :'<li class="empty"><p class="empty-t">Nothing on your list</p><p>When '+esc(p?pn:'your partner')+' asks you to do something, it shows up here.</p></li>';
+  $('#tasks-asked').innerHTML=asked.length?asked.map(t=>
+    '<li class="item">'+
+      '<span class="status-dot'+(t.done?' ok':'')+'" aria-hidden="true"></span>'+
+      '<div class="item-body"><p>'+(t.done?'<span class="pill ok">Done</span>':'<span class="pill open">Open</span>')+esc(t.text)+'</p><span class="meta">For '+esc(nameOf(t.for))+(t.due?' · '+esc(t.due):'')+' · '+esc(t.done?'finished '+fmtWhen(t.doneAt):'added '+fmtWhen(t.at))+'</span></div>'+
+      '<div class="actions">'+delBtn('del-task',t.id)+'</div>'+
+    '</li>').join('')
+    :'<li class="empty"><p>Tasks you give '+esc(p?pn:'your partner')+' appear here with their progress.</p></li>';
+}
+
+/* ---------- render: notes ---------- */
+function renderNotes(){
+  if(S.mode!=='ready') return;
+  const p=partnerId();
+  const list=S.notes.slice().sort((a,b)=>{
+    const ua=a.urgent&&a.by!==S.me&&!(a.seenBy&&a.seenBy[S.me]), ub=b.urgent&&b.by!==S.me&&!(b.seenBy&&b.seenBy[S.me]);
+    if(ua!==ub) return ua?-1:1; return (b.at||0)-(a.at||0);
+  });
+  $('#notes').innerHTML=list.length?list.map(n=>{
+    const mine=n.by===S.me, seenMe=n.seenBy&&n.seenBy[S.me], seenP=p&&n.seenBy&&n.seenBy[p];
+    let right='';
+    if(!mine&&!seenMe) right='<button class="got" data-act="seen-note" data-id="'+esc(n.id)+'">Got it</button>';
+    if(mine) right=delBtn('del-note',n.id);
+    const status=mine?(seenP?'seen '+fmtWhen(seenP):'not seen yet'):(seenMe?'you read this':'new');
+    return '<li class="item"><div class="item-body"><p>'+(n.urgent?'<span class="pill urgent">Urgent</span>':'')+esc(n.text)+'</p>'+
+      '<span class="meta">'+(mine?'You':esc(nameOf(n.by)))+' · '+esc(fmtWhen(n.at))+' · '+esc(status)+'</span></div><div class="actions">'+right+'</div></li>';
+  }).join('')
+  :'<li class="empty"><p class="empty-t">No notes yet</p><p>Leave something important, like a bill due date or a reminder for the morning.</p></li>';
+}
+
+/* ---------- render: chat ---------- */
+function renderChat(){
+  if(S.mode!=='ready') return;
+  const el=$('#thread'), p=partnerId();
+  $('#chat-text').placeholder=p?'Message '+nameOf(p):'Message';
+  const near=!S.chatRendered||el.scrollHeight-el.scrollTop-el.clientHeight<90;
+  if(!S.messages.length){
+    el.innerHTML='<div class="empty"><p class="empty-t">No messages yet</p><p>Say hello, or send a hug with one tap below.</p></div>';
+  } else {
+    let html='', last='';
+    S.messages.forEach(m=>{
+      const d=new Date(m.at||Date.now()), day=dayLabel(d);
+      if(day!==last){html+='<div class="day-sep">'+esc(day)+'</div>'; last=day;}
+      const mine=m.by===S.me, q=QUICK[m.kind];
+      const reacts=Object.entries(m.react||{}).filter(([,v])=>v&&REACTS.indexOf(v)>-1);
+      html+='<div class="brow'+(mine?' mine':'')+'">'+
+        '<button class="bubble'+(q?' signal':'')+'" data-act="bubble" data-id="'+esc(m.id)+'" aria-label="Message from '+esc(mine?'you':nameOf(m.by))+'. Tap to react.">'+
+          (q?'<span class="sig-e" aria-hidden="true">'+q.e+'</span><span>'+esc(q.text)+'</span>':'<span>'+esc(m.text)+'</span>')+'</button>'+
+        (S.reactOpen===m.id?'<div class="react-bar">'+REACTS.map(r=>'<button data-act="react" data-id="'+esc(m.id)+'" data-emoji="'+r+'" aria-label="React with '+r+'">'+r+'</button>').join('')+'</div>':'')+
+        (reacts.length?'<div class="reacts">'+reacts.map(([u,v])=>'<span class="rchip" title="'+esc(nameOf(u))+'">'+v+'</span>').join('')+'</div>':'')+
+        '<span class="btime">'+esc(fmtTime(m.at))+'</span></div>';
+    });
+    el.innerHTML=html;
+  }
+  S.chatRendered=true;
+  if(near) el.scrollTop=el.scrollHeight;
+}
+
+/* ---------- updates feed ---------- */
+function partnerEvents(){
+  const p=partnerId(); if(!p) return [];
+  const ev=[], pn=nameOf(p);
+  S.messages.forEach(m=>{ if(m.by===p) ev.push({at:m.at,ico:'💬',text:pn+': '+msgText(m),tab:'chat'}); });
+  S.tasks.forEach(t=>{
+    if(t.by===p&&t.for===S.me) ev.push({at:t.at,ico:'📝',text:pn+' asked you: '+t.text+(t.due?' ('+t.due+')':''),tab:'tasks'});
+    if(t.by===S.me&&t.for===p&&t.done&&t.doneAt) ev.push({at:t.doneAt,ico:'✅',text:pn+' finished: '+t.text,tab:'tasks'});
+  });
+  S.notes.forEach(n=>{
+    if(n.by===p) ev.push({at:n.at,ico:'📌',text:pn+' left a'+(n.urgent?'n urgent':'')+' note: '+n.text,tab:'notes'});
+    const s=n.seenBy&&n.seenBy[p]; if(n.by===S.me&&s) ev.push({at:s,ico:'👁',text:pn+' read your note: '+n.text,tab:'notes'});
+  });
+  Object.values(S.moods).forEach(d=>{
+    if(d.by!==p) return;
+    Object.values(d.slots||{}).forEach(v=>{ if(v&&MOOD[v.m]) ev.push({at:v.at,ico:MOOD[v.m].e,text:pn+' is feeling '+MOOD[v.m].label.toLowerCase()+(v.note?': '+v.note:'')}); });
+  });
+  const pm=S.members[p];
+  if(pm&&pm.zoneAt) ev.push({at:pm.zoneAt,zone:pm.zone,text:pn+' is now '+(ZONE[pm.zone]||ZONE.available).label.toLowerCase()+(pm.zoneNote?': '+pm.zoneNote:'')});
+  if(pm&&pm.joinedAt) ev.push({at:pm.joinedAt,ico:'👋',text:pn+' joined the board'});
+  return ev.filter(e=>typeof e.at==='number').sort((a,b)=>b.at-a.at).slice(0,40);
+}
+function renderBadges(){
+  if(S.mode!=='ready'){ $('#bell-badge').hidden=true; return; }
+  const p=partnerId();
+  const unread=partnerEvents().filter(e=>e.at>(S.state.lastReadAt||0)).length;
+  const bb=$('#bell-badge'); bb.textContent=unread>9?'9+':String(unread); bb.hidden=!unread;
+  $('#bell-btn').setAttribute('aria-label',unread?unread+' new updates':'Updates');
+  const openForMe=S.tasks.filter(t=>t.for===S.me&&!t.done).length;
+  const notesNew=S.notes.filter(n=>n.by!==S.me&&!(n.seenBy&&n.seenBy[S.me])).length;
+  const chatNew=S.tab==='chat'?0:S.messages.filter(m=>m.by===p&&m.at>(S.state.chatReadAt||0)).length;
+  [['#count-tasks',openForMe],['#count-notes',notesNew],['#count-chat',chatNew]].forEach(([sel,n])=>{const el=$(sel); el.textContent=n>9?'9+':String(n); el.hidden=!n;});
+  try{ if(navigator.setAppBadge){ const total=unread; total?navigator.setAppBadge(total).catch(()=>{}):navigator.clearAppBadge().catch(()=>{}); } }catch(e){}
+}
+function renderBell(){
+  const ev=partnerEvents(), mark=S.readMarkShown;
+  $('#events').innerHTML=ev.length?ev.map(e=>
+    '<li class="ev'+(e.at>mark?' new':'')+'"'+(e.tab?' data-act="goto" data-tab="'+e.tab+'" role="button" tabindex="0"':'')+'>'+
+      '<span class="ev-ico" aria-hidden="true">'+(e.zone?svg(e.zone):e.ico)+'</span>'+
+      '<div class="item-body"><p>'+esc(e.text)+'</p><span class="meta">'+esc(fmtWhen(e.at))+'</span></div></li>').join('')
+    :'<li class="empty"><p class="empty-t">Nothing yet</p><p>Updates from your partner collect here: messages, tasks, notes, moods and status changes.</p></li>';
+  $('#sound-switch').setAttribute('aria-checked',soundOn()?'true':'false');
+  const me=S.members[S.me]||{};
+  $('#push-switch').setAttribute('aria-checked',me.push?'true':'false');
+  $('#push-help').hidden=!me.push;
+  if(me.push) topicFor(S.me).then(t=>{ $('#push-topic').textContent=t; $('#push-open').href='https://ntfy.sh/'+t; });
+  let granted=false; try{ granted='Notification' in window&&Notification.permission==='granted'; }catch(e){}
+  $('#alert-btn').hidden=granted;
+  $('#alert-msg').textContent=granted?'On. You get a system notification when the app is in the background.':(S.alertMsg||'Shows a system notification when the app is in the background.');
+  const f=$('#forget-btn'); f.textContent=S.armed==='forget'?'Tap again to forget':'Forget board'; f.classList.toggle('armed',S.armed==='forget');
+}
+
+/* ---------- sheets ---------- */
+let lastFocus=null;
+function openSheet(which){
+  lastFocus=document.activeElement;
+  S.sheet=which; $('#scrim').hidden=false;
+  $('#zone-sheet').hidden=which!=='zone'; $('#bell-sheet').hidden=which!=='bell';
+  if(which==='zone'){
+    const m=S.members[S.me]||{}; S.zonePick=m.zone||'available';
+    $('#zone-note').value=m.zoneNote||''; $('#zone-nick').value=m.nick||''; renderZoneGrid();
+    const b=$('#zone-grid [aria-pressed="true"]'); if(b) b.focus();
+  } else {
+    S.readMarkShown=S.state.lastReadAt||0; renderBell();
+    writeState({lastReadAt:Date.now()});
+    $('#bell-sheet .btn').focus();
+  }
+}
+function closeSheet(){
+  S.sheet=null; $('#scrim').hidden=true; $('#zone-sheet').hidden=true; $('#bell-sheet').hidden=true;
+  if(lastFocus&&lastFocus.focus) try{lastFocus.focus()}catch(e){}
+}
+function renderZoneGrid(){
+  $('#zone-grid').innerHTML=ZONES.map(z=>'<button class="zone-opt" data-act="pick-zone" data-zone="'+z.k+'" aria-pressed="'+(S.zonePick===z.k?'true':'false')+'">'+svg(z.k)+'<span class="zo-t"><b>'+esc(z.label)+'</b><span>'+esc(z.call)+'</span></span></button>').join('');
+}
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  S.tab=t;
+  ['tasks','notes','chat'].forEach(k=>{
+    $('#tab-'+k).setAttribute('aria-selected',k===t?'true':'false');
+    $('#panel-'+k).hidden=k!==t;
+  });
+  if(t==='chat'){
+    S.chatRendered=false; renderChat();
+    const p=partnerId();
+    if(S.messages.some(m=>m.by===p&&m.at>(S.state.chatReadAt||0))) writeState({chatReadAt:Date.now()});
+  }
+  renderBadges();
+}
+
+/* ---------- actions ---------- */
+function setSeat(seat){
+  S.me=seat; store('bu-seat-'+S.room.r,seat);
+  writeState({lastReadAt:Date.now(),chatReadAt:Date.now()});
+  updateMode(); renderAll(); beat();
+}
+async function join(){
+  const nick=$('#join-nick').value.trim().slice(0,24); if(!nick){ $('#join-nick').focus(); return; }
+  const seat=S.members.a?(S.members.b?null:'b'):'a';
+  if(!seat){ updateMode(); renderAll(); return; }
+  const now=Date.now();
+  const doc={joinedAt:now,nick:nick,zone:'available',zoneNote:'',zoneAt:now};
+  const ok=await act(()=>S.db.doc('members/'+seat).set(doc),"Couldn't join. Try again.");
+  if(ok){ if(!S.members[seat]) S.members=Object.assign({},S.members,{[seat]:doc}); setSeat(seat); }
+}
+async function saveZone(){
+  const z=S.zonePick||'available', note=$('#zone-note').value.trim().slice(0,60), nick=$('#zone-nick').value.trim().slice(0,24);
+  const m=S.members[S.me]||{}, patch={};
+  if(nick&&nick!==m.nick) patch.nick=nick;
+  const zoneChanged=z!==m.zone||note!==(m.zoneNote||'');
+  if(zoneChanged) Object.assign(patch,{zone:z,zoneNote:note,zoneAt:Date.now()});
+  if(!Object.keys(patch).length){ closeSheet(); return; }
+  const ok=await act(()=>S.db.doc('members/'+S.me).update(patch));
+  if(ok){ closeSheet(); toast(zoneChanged?'Status updated: '+ZONE[z].label:'Saved'); if(zoneChanged) pushPartner('zone',nameOf(S.me)+' updated their status'); }
+}
+async function checkIn(k){
+  if(!MOOD[k]) return;
+  const now=new Date(), date=ymd(now), slot=slotOf(now), id=S.me+'_'+date;
+  const entry={m:k,note:$('#mood-note').value.trim().slice(0,80),at:Date.now()};
+  const slots={}; slots['s'+slot]=entry;
+  const ok=await act(()=>S.db.doc('moods/'+id).update({by:S.me,date:date,slots:slots}));
+  if(ok){ $('#mood-note').value=''; toast('Checked in: '+MOOD[k].e+' '+MOOD[k].label); pushPartner('mood',nameOf(S.me)+' did a mood check-in'); }
+}
+async function addTask(){
+  const p=partnerId(), text=$('#task-text').value.trim().slice(0,140);
+  if(!p||!text) return;
+  const ok=await act(()=>S.db.collection('tasks').add({by:S.me,for:p,text:text,due:$('#task-due').value,at:Date.now(),done:false,doneAt:0}));
+  if(ok){ $('#task-text').value=''; $('#task-due').value=''; pushPartner('task',nameOf(S.me)+' gave you a task'); }
+}
+async function toggleTask(id){
+  const t=S.tasks.find(x=>x.id===id); if(!t) return;
+  const ok=await act(()=>S.db.doc('tasks/'+id).update({done:!t.done,doneAt:t.done?0:Date.now()}));
+  if(ok&&!t.done) pushPartner('done',nameOf(S.me)+' finished a task');
+}
+async function addNote(){
+  const text=$('#note-text').value.trim().slice(0,240); if(!text) return;
+  const urgent=$('#note-urgent').checked;
+  const ok=await act(()=>S.db.collection('notes').add({by:S.me,text:text,urgent:urgent,at:Date.now(),seenBy:{}}));
+  if(ok){ $('#note-text').value=''; $('#note-urgent').checked=false; pushPartner('note',nameOf(S.me)+' left '+(urgent?'an urgent':'a')+' note'); }
+}
+function seenNote(id){ const patch={}; patch[S.me]=Date.now(); act(()=>S.db.doc('notes/'+id).update({seenBy:patch})); }
+function armedDelete(kind,id,fn){
+  const key=kind+':'+id;
+  if(S.armed===key){ S.armed=null; fn(); return; }
+  S.armed=key; renderTasks(); renderNotes();
+  setTimeout(()=>{ if(S.armed===key){ S.armed=null; renderTasks(); renderNotes(); } },3500);
+}
+async function sendMsg(kind,text){
+  const ok=await act(()=>S.db.collection('messages').add({by:S.me,kind:kind,text:text,at:Date.now(),react:{}}));
+  if(ok){ S.chatRendered=false; writeState({chatReadAt:Date.now()}); pruneOld(); pushPartner('msg',kind==='text'?nameOf(S.me)+' sent a message':nameOf(S.me)+': '+QUICK[kind].text); }
+  return ok;
+}
+async function sendQuick(kind){
+  if(!QUICK[kind]) return;
+  const ok=await sendMsg(kind,QUICK[kind].text);
+  if(ok&&S.tab!=='chat') toast('Sent: '+QUICK[kind].e+' '+QUICK[kind].text);
+}
+function react(id,emoji){
+  if(REACTS.indexOf(emoji)<0) return;
+  const m=S.messages.find(x=>x.id===id); if(!m) return;
+  const cur=m.react&&m.react[S.me], patch={}; patch[S.me]=cur===emoji?'':emoji;
+  S.reactOpen=null; renderChat();
+  act(()=>S.db.doc('messages/'+id).update({react:patch}));
+}
+async function pruneOld(){
+  if(S.pruned) return; S.pruned=true;
+  try{
+    const old=await S.db.collection('messages').where('at','<',Date.now()-120*864e5).limit(50).get();
+    for(const d of old.docs) await S.db.doc('messages/'+d.id).delete();
+    const done=await S.db.collection('tasks').where('doneAt','>',0).where('doneAt','<',Date.now()-60*864e5).limit(50).get();
+    for(const d of done.docs) await S.db.doc('tasks/'+d.id).delete();
+  }catch(e){}
+}
+async function enableAlerts(){
+  if(!('Notification' in window)){ S.alertMsg='This browser can’t show system alerts. Add the app to your home screen, or use push alerts below.'; renderBell(); return; }
+  try{
+    const r=await Notification.requestPermission();
+    S.alertMsg=r==='granted'?'':'Alerts are blocked for this site. Allow notifications in your browser settings, or use push alerts below.';
+  }catch(e){ S.alertMsg='Alerts are blocked here. Use push alerts below instead.'; }
+  renderBell();
+}
+async function togglePush(){
+  const on=!(S.members[S.me]||{}).push;
+  const ok=await act(()=>S.db.doc('members/'+S.me).update({push:on}));
+  if(ok){ S.members[S.me]=Object.assign({},S.members[S.me],{push:on}); renderBell(); }
+}
+function beat(){ if(S.mode==='ready'&&S.db&&!document.hidden) S.db.doc('presence/'+S.me).set({at:Date.now()}).catch(()=>{}); }
+
+/* ---------- setup + room lifecycle ---------- */
+async function createBoard(){
+  const errEl=$('#setup-err'), st=$('#setup-status'), btn=$('#setup-btn');
+  errEl.hidden=true;
+  const cfg=parseConfig($('#cfg').value);
+  if(!cfg){ errEl.textContent='That doesn’t look like a Firebase config. Copy the whole block that starts with “const firebaseConfig = {”.'; errEl.hidden=false; return; }
+  btn.disabled=true; st.textContent='Checking your Firebase project…';
+  try{
+    const app=await initFirebase(cfg);
+    await withTimeout(app.auth().signInAnonymously(),15000);
+    const room={c:cfg,r:rand(16),k:rand(32)};
+    await withTimeout(app.firestore().collection('rooms').doc(room.r).collection('meta').doc('created').set({at:Date.now(),v:1}),15000);
+    S.room=room; store('bu-room',encodeRoom(room));
+    const link=inviteLink();
+    $('#new-link').textContent=link;
+    $('#wa-link').href='https://wa.me/?text='+encodeURIComponent('Our board on Between Us: '+link);
+    $('#setup-done').hidden=false; st.textContent='Connected. Your board is created.';
+    $('#setup-done').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){ st.textContent=''; errEl.textContent=friendly(e); errEl.hidden=false; }
+  btn.disabled=false;
+}
+function unsubscribeAll(){ S.unsubs.forEach(u=>{try{u()}catch(e){}}); S.unsubs=[]; }
+function sub(ref,handler,tries){
+  tries=tries||0;
+  S.unsubs.push(ref.onSnapshot(handler,e=>{
+    console.warn(e);
+    if(e&&e.code==='permission-denied'){ S.mode='error'; S.err=friendly(e); renderAll(); }
+    else if(tries<3) setTimeout(()=>sub(ref,handler,tries+1),2000*(tries+1));
+    else { S.dbError=true; renderNotice(); }
+  }));
+}
+async function openRoom(room){
+  S.room=room; S.mode='connecting'; S.err=''; renderAll();
+  unsubscribeAll();
+  S.got={members:false,moods:false,notes:false,tasks:false,messages:false};
+  S.members={}; S.moods={}; S.notes=[]; S.tasks=[]; S.messages=[]; S.presence={};
+  try{
+    const app=await initFirebase(room.c);
+    const fs=app.firestore();
+    try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+    await withTimeout(app.auth().signInAnonymously(),15000);
+    S.key=await importKey(room.k);
+    S.db=makeDb(fs,room.r);
+  }catch(e){ S.mode='error'; S.err=friendly(e); renderAll(); return; }
+  S.me=store('bu-seat-'+room.r)||null;
+  try{ const st=JSON.parse(store(stateKey())||'null'); if(st) S.state={lastReadAt:st.lastReadAt||0,chatReadAt:st.chatReadAt||0}; }catch(e){}
+  const db=S.db;
+  sub(db.collection('members'),onMembers);
+  sub(db.collection('moods').orderBy('date','desc').limit(12),onMoods);
+  sub(db.collection('notes').orderBy('at','desc').limit(100),onNotes);
+  sub(db.collection('tasks').orderBy('at','desc').limit(200),onTasks);
+  sub(db.collection('messages').orderBy('at','desc').limit(150),onMessages);
+  sub(db.collection('presence'),onPresence);
+}
+function forgetBoard(){
+  unsubscribeAll();
+  if(S.room){ store('bu-seat-'+S.room.r,null); store(stateKey(),null); }
+  store('bu-room',null);
+  S.room=null; S.db=null; S.me=null; S.mode='welcome'; closeSheet();
+  if(location.hash) history.replaceState(null,'',appUrl());
+  renderAll();
+}
+
+/* ---------- live data ---------- */
+function updateMode(){
+  if(!S.got.members) return;
+  if(S.me&&S.members[S.me]){ S.mode='ready'; return; }
+  if(S.me&&!S.members[S.me]){ S.me=null; store('bu-seat-'+S.room.r,null); }
+  S.mode=Object.keys(S.members).length>=2?'claim':'join';
+}
+function onMembers(snap){
+  const prev=S.members, next={};
+  snap.docs.forEach(d=>{ if(d.exists&&(d.id==='a'||d.id==='b')) next[d.id]=d.data(); });
+  S.members=next;
+  const p=partnerId();
+  if(S.got.members&&p&&S.members[S.me]){
+    if(!prev[p]&&next[p]) notify(nameOf(p)+' joined the board');
+    else if(prev[p]&&next[p]&&next[p].zoneAt!==prev[p].zoneAt&&fresh(next[p].zoneAt)){
+      const z=ZONE[next[p].zone]||ZONE.available;
+      notify(nameOf(p)+' is now '+z.label.toLowerCase()+(next[p].zoneNote?': '+next[p].zoneNote:''));
+    }
+  }
+  const was=S.mode;
+  S.got.members=true; updateMode(); renderAll();
+  if(was!=='ready'&&S.mode==='ready') beat();
+}
+function onMoods(snap){
+  const prev=S.moods, next={};
+  snap.docs.forEach(d=>{ if(d.exists) next[d.id]=d.data(); });
+  const p=partnerId();
+  if(S.got.moods&&p){
+    Object.entries(next).forEach(([id,d])=>{
+      if(d.by!==p) return;
+      const before=(prev[id]&&prev[id].slots)||{};
+      Object.entries(d.slots||{}).forEach(([k,v])=>{
+        if(v&&MOOD[v.m]&&(!before[k]||before[k].at!==v.at)&&fresh(v.at)) notify(nameOf(p)+' checked in: '+MOOD[v.m].e+' '+MOOD[v.m].label+(v.note?' — '+v.note:''));
+      });
+    });
+  }
+  S.moods=next; S.got.moods=true; renderPair(); renderMood(); renderBadges();
+}
+function onNotes(snap){
+  const prevMap=Object.fromEntries(S.notes.map(n=>[n.id,n]));
+  const list=snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));
+  const p=partnerId();
+  if(S.got.notes&&p){
+    list.forEach(n=>{
+      const old=prevMap[n.id];
+      if(!old&&n.by===p&&fresh(n.at)) notify(nameOf(p)+' left '+(n.urgent?'an urgent':'a')+' note: '+n.text);
+      if(old&&n.by===S.me){ const s=n.seenBy&&n.seenBy[p], s0=old.seenBy&&old.seenBy[p]; if(s&&!s0&&fresh(s)) notify(nameOf(p)+' read your note'); }
+    });
+  }
+  S.notes=list; S.got.notes=true; renderNotes(); renderBadges(); renderNotice();
+}
+function onTasks(snap){
+  const prevMap=Object.fromEntries(S.tasks.map(t=>[t.id,t]));
+  const list=snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));
+  const p=partnerId();
+  if(S.got.tasks&&p){
+    list.forEach(t=>{
+      const old=prevMap[t.id];
+      if(!old&&t.by===p&&t.for===S.me&&fresh(t.at)) notify(nameOf(p)+' asked you: '+t.text);
+      if(old&&t.by===S.me&&t.done&&!old.done&&fresh(t.doneAt)) notify(nameOf(p)+' finished: '+t.text);
+    });
+  }
+  S.tasks=list; S.got.tasks=true; renderTasks(); renderBadges();
+}
+function onMessages(snap){
+  const prevMap=Object.fromEntries(S.messages.map(m=>[m.id,m]));
+  const list=snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())).reverse();
+  const p=partnerId();
+  if(S.got.messages&&p){
+    list.forEach(m=>{
+      const old=prevMap[m.id];
+      if(!old&&m.by===p&&fresh(m.at)) notify(nameOf(p)+': '+msgText(m));
+      if(old&&m.by===S.me){
+        const r=m.react&&m.react[p], r0=old.react&&old.react[p];
+        if(r&&r!==r0&&REACTS.indexOf(r)>-1) notify(nameOf(p)+' reacted '+r+' to “'+msgText(m).slice(0,40)+'”');
+      }
+    });
+  }
+  S.messages=list; S.got.messages=true; renderChat(); renderBadges();
+}
+function onPresence(snap){
+  const next={}; snap.docs.forEach(d=>{ if(d.exists) next[d.id]=d.data().at; });
+  S.presence=next; renderPair();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled) return;
+  const id=b.dataset.id;
+  switch(b.dataset.act){
+    case 'start-setup': S.mode='wizard'; renderAll(); window.scrollTo(0,0); break;
+    case 'back-welcome': S.mode='welcome'; renderAll(); break;
+    case 'copy-rules': copyText($('#rules-text').textContent,'Rules copied'); break;
+    case 'copy-link': if(S.room) copyText(inviteLink(),'Invite link copied'); break;
+    case 'enter-board': openRoom(S.room); break;
+    case 'retry': if(S.room) openRoom(S.room); break;
+    case 'forget': forgetBoard(); break;
+    case 'forget-armed': if(S.armed==='forget'){ S.armed=null; forgetBoard(); } else { S.armed='forget'; renderBell(); setTimeout(()=>{ if(S.armed==='forget'){ S.armed=null; if(S.sheet==='bell') renderBell(); } },3500); } break;
+    case 'claim': setSeat(b.dataset.seat); break;
+    case 'open-zone': openSheet('zone'); break;
+    case 'open-bell': if(S.mode==='ready') openSheet('bell'); break;
+    case 'close-sheet': closeSheet(); break;
+    case 'pick-zone': S.zonePick=b.dataset.zone; renderZoneGrid(); break;
+    case 'save-zone': saveZone(); break;
+    case 'mood': checkIn(b.dataset.mood); break;
+    case 'toggle-task': toggleTask(id); break;
+    case 'del-task': armedDelete('del-task',id,()=>act(()=>S.db.doc('tasks/'+id).delete())); break;
+    case 'seen-note': seenNote(id); break;
+    case 'del-note': armedDelete('del-note',id,()=>act(()=>S.db.doc('notes/'+id).delete())); break;
+    case 'quick': sendQuick(b.dataset.kind); break;
+    case 'bubble': S.reactOpen=S.reactOpen===id?null:id; renderChat(); break;
+    case 'react': react(id,b.dataset.emoji); break;
+    case 'tab': setTab(b.dataset.tab); break;
+    case 'goto': closeSheet(); setTab(b.dataset.tab); break;
+    case 'sound': { const on=!soundOn(); store('bu-sound',on?'on':'off'); b.setAttribute('aria-checked',on?'true':'false'); if(on) chime(); break; }
+    case 'alerts': enableAlerts(); break;
+    case 'push': togglePush(); break;
+    case 'copy-topic': copyText($('#push-topic').textContent,'Topic copied'); break;
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.sheet) closeSheet();
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.ev[data-act]')){ e.preventDefault(); e.target.click(); }
+});
+$('#open-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const room=roomFromText($('#invite-in').value);
+  if(!room){ $('#invite-err').textContent='That link is incomplete. Copy the whole link your partner sent, including the part after #b=.'; $('#invite-err').hidden=false; return; }
+  $('#invite-err').hidden=true; store('bu-room',encodeRoom(room)); openRoom(room);
+});
+$('#setup-form').addEventListener('submit',e=>{e.preventDefault(); createBoard();});
+$('#join-form').addEventListener('submit',e=>{e.preventDefault(); join();});
+$('#task-form').addEventListener('submit',e=>{e.preventDefault(); addTask();});
+$('#note-form').addEventListener('submit',e=>{e.preventDefault(); addNote();});
+$('#chat-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const inp=$('#chat-text'), text=inp.value.trim().slice(0,600); if(!text) return;
+  inp.value='';
+  const ok=await sendMsg('text',text); if(!ok) inp.value=text;
+});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&S.mode==='ready'){ beat(); renderPair(); renderMood(); } });
+window.addEventListener('hashchange',()=>{ const r=roomFromText(location.hash); if(r&&(!S.room||r.r!==S.room.r||r.k!==S.room.k)){ store('bu-room',encodeRoom(r)); openRoom(r); } });
+
+/* ---------- boot ---------- */
+function boot(){
+  buildMoodGrid();
+  const tick=()=>{ $('#clock').textContent=new Date().toLocaleDateString([], {weekday:'short'})+' '+fmtTime(Date.now()); };
+  tick();
+  setInterval(()=>{ tick(); if(S.mode==='ready'){ renderPair(); renderMood(); } },30000);
+  setInterval(beat,90000);
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').then(r=>{S.swReg=r}).catch(()=>{}); }
+  if(!window.crypto||!crypto.subtle){ S.mode='error'; S.err='This browser can’t encrypt the board. Open the link in Chrome or Safari.'; renderAll(); return; }
+  const fromLink=roomFromText(location.hash);
+  if(fromLink) store('bu-room',encodeRoom(fromLink));
+  const saved=fromLink||decodeRoom(store('bu-room')||'');
+  if(!saved){ S.mode='welcome'; renderAll(); return; }
+  openRoom(saved);
+}
+boot();
+})();
+</script>
+</body>
+</html>
